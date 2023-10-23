@@ -1,0 +1,135 @@
+name: _job_build
+
+on:
+  workflow_call:
+    inputs:
+      name:
+        required: true
+        type: string
+      cflags:
+        required: false
+        type: string
+        default: ''
+      rustflags:
+        required: false
+        type: string
+        default: ''
+      configure:
+        required: false
+        type: string
+        default: ''
+      runner:
+        required: false
+        type: string
+        default: 'ubuntu-24.04'
+      continue:
+        required: true
+        type: boolean
+
+jobs:
+  proton:
+    name: Build ${{ inputs.name }}
+    runs-on: ${{ inputs.runner }}
+    continue-on-error: ${{ inputs.continue }}
+    steps:
+
+    - name: Debloat GitHub runner
+      uses: endersonmenezes/free-disk-space@v3
+      with:
+        remove_android: true
+        remove_dotnet: true
+        remove_haskell: true
+        remove_tool_cache: true
+        remove_swap: true
+        remove_packages: >-
+          azure-cli
+          google-cloud-cli
+          microsoft-edge-stable
+          google-chrome-stable
+          firefox
+          postgresql*
+          temurin-*
+          *llvm*
+          mysql*
+          dotnet-sdk-*
+        remove_packages_one_command: false
+        remove_folders: >-
+          /usr/share/swift
+          /usr/share/miniconda
+          /usr/share/az*
+          /usr/local/lib/node_modules
+          /usr/local/share/chromium
+          /usr/local/share/powershell
+          /usr/local/julia
+          /usr/local/aws-cli
+          /usr/local/aws-sam-cli
+          /usr/share/gradle
+        testing: false
+
+    - name: Prepare host
+      run: sudo apt update && sudo apt-get install -y ccache fontforge-nox
+
+    - name: Checkout
+      uses: actions/checkout@v6
+      with:
+        fetch-depth: 0
+        fetch-tags: true
+        submodules: false
+
+    - name: Patch
+      run: |
+        git submodule update --init --filter=tree:0 --recursive
+        mkdir ./build
+
+    - name: Configure
+      working-directory: ./build
+      env:
+        CFLAGS: ${{ inputs.cflags }}
+        RUSTFLAGS: ${{ inputs.rustflags }}
+        USE_LTO: 0
+      run: |
+        ../configure.sh --build-name=${{ inputs.name }} --container-engine=docker ${{ inputs.configure }}
+        cat Makefile
+
+    - name: Cache identifier
+      working-directory: ./build
+      id: ccache-id
+      run: |
+        image=$(make get-steamrt-image | tail -1)
+        checksum=$(echo "$image ${{ inputs.cflags }} ${{ inputs.configure }}" | sha1sum | cut -d' ' -f1)
+        echo "checksum=$checksum" >> $GITHUB_OUTPUT
+
+    - name: Restore cache
+      id: ccache-restore
+      uses: actions/cache/restore@v5
+      with:
+        path: ~/.ccache
+        key: ccache-proton-${{ steps.ccache-id.outputs.checksum }}-${{ github.run_id }}
+        restore-keys: |
+          ccache-proton-${{ steps.ccache-id.outputs.checksum }}
+
+    - name: Make ${{ inputs.name }}
+      working-directory: ./build
+      run: |
+        make redist
+
+    - name: Save cache
+      id: ccache-save
+      if: always()
+      uses: actions/cache/save@v5
+      with:
+        path: ~/.ccache
+        key: ${{ steps.ccache-restore.outputs.cache-primary-key }}
+
+    - name: Upload artifact ${{ inputs.name }}.tar.xz
+      uses: actions/upload-artifact@v6
+      with:
+        name: ${{ inputs.name }}.tar.xz
+        path: ./build/${{ inputs.name }}.tar.xz
+
+    - name: Upload artifact ${{ inputs.name }}.sha512sum
+      uses: actions/upload-artifact@v6
+      with:
+        name: ${{ inputs.name }}.sha512sum
+        path: ./build/${{ inputs.name }}.sha512sum
+

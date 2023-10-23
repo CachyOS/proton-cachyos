@@ -1,0 +1,39 @@
+name: _job_upload
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        required: true
+        type: string
+      name:
+        required: true
+        type: string
+
+jobs:
+  upload:
+    name: Upload ${{ inputs.name }}
+    strategy:
+      matrix:
+        include:
+          - file: ${{ inputs.name }}.tar.xz
+          - file: ${{ inputs.name }}.sha512sum
+    runs-on: ubuntu-slim
+    steps:
+
+      - name: Download ${{ matrix.file }} artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: ${{ matrix.file }}
+
+      - name: Upload ${{ matrix.file }} to release
+        shell: bash
+        run: >-
+          gh
+          --repo "${{ github.server_url }}/${{ github.repository }}"
+          release upload
+          ${{ inputs.version }}
+          ${{ matrix.file }}
+          --clobber
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
