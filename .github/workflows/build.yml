@@ -1,0 +1,55 @@
+name: Build
+
+on:
+  workflow_call:
+    inputs:
+      name:
+        required: true
+        type: string
+
+jobs:
+  proton:
+    name: ${{ inputs.name }}
+    runs-on: ubuntu-latest
+    steps:
+    - name: Prepare host
+      run: sudo apt update && sudo apt-get install -y ccache fontforge-nox
+
+    - name: Download cache
+      uses: actions/cache@v3
+      with:
+        path: ~/.ccache
+        key: ccache-proton-${{ github.run_id }}
+        restore-keys: |
+          ccache-proton
+
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        fetch-tags: true
+        submodules: recursive
+
+    - name: Patch
+      run: |
+        mkdir ./build
+
+    - name: Configure
+      working-directory: ./build
+      run: ../configure.sh --build-name=${{ inputs.name }} --enable-ccache --container-engine=docker
+
+    - name: Make ${{ inputs.name }}
+      working-directory: ./build
+      run: make -j3 redist
+
+    - name: Upload artifact ${{ inputs.name }}.tar.gz
+      uses: actions/upload-artifact@v3
+      with:
+        name: ${{ inputs.name }}.tar.gz
+        path: ./build/${{ inputs.name }}.tar.gz
+
+    - name: Upload artifact ${{ inputs.name }}.sha512sum
+      uses: actions/upload-artifact@v3
+      with:
+        name: ${{ inputs.name }}.sha512sum
+        path: ./build/${{ inputs.name }}.sha512sum
