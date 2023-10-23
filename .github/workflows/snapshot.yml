@@ -1,0 +1,110 @@
+name: Snapshot
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - 'cachyos_*_*/main'
+      - 'cachyos_*_*/dev'
+
+concurrency:
+  group: ${{ github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  version:
+    name: Version
+    runs-on: ubuntu-slim
+    outputs:
+      tag_abbrev: ${{ steps.version.outputs.tag_abbrev }}
+      tag_offset: ${{ steps.version.outputs.tag_offset }}
+      sha_short: ${{ steps.version.outputs.sha_short }}
+      full_desc: ${{ steps.version.outputs.full_desc }}
+      branch: ${{ steps.version.outputs.branch }}
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v6
+      with:
+        fetch-depth: 0
+        fetch-tags: true
+
+    - name: Version
+      id: version
+      shell: bash
+      run: |
+        tag_abbrev=$(git describe --tags --abbrev=0)
+        echo "tag_abbrev=$tag_abbrev" >> $GITHUB_OUTPUT
+        echo "tag_offset=$(git rev-list $tag_abbrev..HEAD --count)" >> $GITHUB_OUTPUT
+        echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+        echo "full_desc=$(git describe --long --tags)" >> $GITHUB_OUTPUT
+        echo "branch=${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}" >> $GITHUB_OUTPUT
+
+  build:
+    name: Build
+    needs: version
+    strategy:
+      matrix:
+        include:
+          - name: proton-${{ needs.version.outputs.full_desc }}-x86_64
+            cflags: -O3 -march=nocona -mtune=core-avx2
+            rustflags: -Copt-level=3 -Ctarget-cpu=nocona
+
+          - name: proton-${{ needs.version.outputs.full_desc }}-x86_64_v3
+            cflags: -O3 -march=x86-64-v3 -mtune=core-avx2
+            rustflags: -Copt-level=3 -Ctarget-cpu=nocona
+
+          - name: proton-${{ needs.version.outputs.full_desc }}-x86_64-wow64
+            cflags: -O3 -march=nocona -mtune=core-avx2
+            rustflags: -Copt-level=3 -Ctarget-cpu=nocona
+            configure: >-
+              --enable-wow64
+
+          - name: proton-${{ needs.version.outputs.full_desc }}-x86_64-llvm
+            cflags: -O3 -march=nocona -mtune=core-avx2
+            rustflags: -Copt-level=3 -Ctarget-cpu=nocona
+            configure: >-
+              --without-nvidia-libs
+              --without-tts
+              --proton-sdk-image=registry.gitlab.steamos.cloud/proton/steamrt4/sdk/x86_64-llvm:4.0.20260331.220802-0
+
+          - name: proton-${{ needs.version.outputs.full_desc }}-x86_64-llvm-wow64
+            cflags: -O3 -march=nocona -mtune=core-avx2
+            rustflags: -Copt-level=3 -Ctarget-cpu=nocona
+            configure: >-
+              --enable-wow64
+              --without-nvidia-libs
+              --without-tts
+              --proton-sdk-image=registry.gitlab.steamos.cloud/proton/steamrt4/sdk/x86_64-llvm:4.0.20260331.220802-0
+
+          - name: proton-${{ needs.version.outputs.full_desc }}-arm64
+            configure: >-
+              --without-nvidia-libs
+              --target-arch=arm64
+            runner: 'ubuntu-24.04-arm'
+    uses: ./.github/workflows/_job_build.yml
+    with:
+      name: ${{ matrix.name }}
+      cflags: ${{ matrix.cflags }}
+      rustflags: ${{ matrix.rustflags }}
+      configure: --enable-ccache ${{ matrix.configure }}
+      runner: ${{ matrix.runner != '' && matrix.runner || 'ubuntu-24.04' }}
+      continue: true
+
+  test:
+    name: Test
+    needs: [version, build]
+    strategy:
+      matrix:
+        include:
+          - name: proton-${{ needs.version.outputs.full_desc }}-x86_64
+          - name: proton-${{ needs.version.outputs.full_desc }}-x86_64_v3
+          - name: proton-${{ needs.version.outputs.full_desc }}-x86_64-wow64
+          - name: proton-${{ needs.version.outputs.full_desc }}-x86_64-llvm
+          - name: proton-${{ needs.version.outputs.full_desc }}-x86_64-llvm-wow64
+          - name: proton-${{ needs.version.outputs.full_desc }}-arm64
+            runner: 'ubuntu-24.04-arm'
+    uses: ./.github/workflows/_job_test.yml
+    with:
+      name: ${{ matrix.name }}
+      runner: ${{ matrix.runner != '' && matrix.runner || 'ubuntu-24.04' }}
+      continue: true
