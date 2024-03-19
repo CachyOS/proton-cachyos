@@ -54,11 +54,12 @@ else
 endif
 
 CROSSLDFLAGS   += -Wl,--file-alignment,4096
-OPTIMIZE_FLAGS := -O2 -march=nocona -mtune=core-avx2 -mfpmath=sse
+CFLAGS         ?= -O2 -march=nocona -mtune=core-avx2
+OPTIMIZE_FLAGS := $(CFLAGS) -mfpmath=sse
 SANITY_FLAGS   := -fwrapv -fno-strict-aliasing
 DEBUG_FLAGS    := -ggdb -ffunction-sections -fdata-sections -fno-omit-frame-pointer
 COMMON_FLAGS    = $(DEBUG_FLAGS) $(OPTIMIZE_FLAGS) $(SANITY_FLAGS) -ffile-prefix-map=$(CCACHE_BASEDIR)=.
-COMMON_FLAGS32 := -mstackrealign
+COMMON_FLAGS32 := -mstackrealign -mno-avx
 COMMON_FLAGS64 := -mcmodel=small
 CARGO_BUILD_ARGS += --release
 
@@ -70,6 +71,14 @@ ifeq ($(ENABLE_BEAR),1)
 	BEAR := bear --append --
 else
 	BEAR :=
+endif
+
+ifneq ($(USE_LTO), 1)
+	GST_LTO :=
+	FFMPEG_LTO :=
+else
+	GST_LTO := -Db_lto=true
+	FFMPEG_LTO := --enable-lto
 endif
 
 $(DST_DIR):
@@ -85,7 +94,7 @@ all: all-dist | $(DST_DIR)
 all-dist: | $(DST_DIR)
 dist: all
 
-J = $(patsubst -j%,%,$(filter -j%,$(MAKEFLAGS)))
+J = $(patsubst -j%,%,$(SUBJOBS))
 
 include $(SRC)/make/utility.mk
 include $(SRC)/make/rules-source.mk
@@ -118,6 +127,7 @@ $(eval $(call rules-meson,dav1d,64))
 ##
 
 GST_ORC_MESON_ARGS := \
+	$(GST_LTO) \
 	-Dexamples=disabled \
 	-Dtests=disabled \
 	-Dbenchmarks=disabled \
@@ -133,7 +143,10 @@ $(eval $(call rules-meson,gst_orc,64))
 ##
 
 GSTREAMER_MESON_ARGS := \
+	$(GST_LTO) \
 	-Dgst_parse=false \
+	-Dptp-helper-permissions=capabilities \
+	-Ddbghelp=disabled \
 	-Dintrospection=disabled \
 	-Dgobject-cast-checks=disabled \
 	-Dglib-asserts=disabled \
@@ -157,6 +170,11 @@ $(eval $(call rules-meson,gstreamer,64))
 ## graphene
 ##
 
+GRAPHENE_MESON_ARGS := \
+	-Dtests=false \
+	-Dintrospection=disabled \
+	-Dinstalled_tests=false
+
 $(eval $(call rules-source,graphene,$(SRCDIR)/graphene))
 $(eval $(call rules-meson,graphene,32))
 $(eval $(call rules-meson,graphene,64))
@@ -167,6 +185,7 @@ $(eval $(call rules-meson,graphene,64))
 ##
 
 GST_BASE_MESON_ARGS := \
+	$(GST_LTO) \
 	-Dauto_features=disabled \
 	-Dintrospection=disabled \
 	-Dgobject-cast-checks=disabled \
@@ -176,6 +195,7 @@ GST_BASE_MESON_ARGS := \
 	-Dexamples=disabled \
 	-Dtests=disabled \
 	-Ddoc=disabled \
+	-Dtools=disabled \
 	-Dadder=enabled \
 	-Dapp=enabled \
 	-Daudioconvert=enabled \
@@ -208,6 +228,7 @@ $(eval $(call rules-meson,gst_base,64))
 ##
 
 GST_GOOD_MESON_ARGS := \
+	$(GST_LTO) \
 	-Dapetag=enabled \
 	-Dauto_features=disabled \
 	-Dgobject-cast-checks=disabled \
@@ -253,6 +274,7 @@ $(eval $(call rules-meson,gst_good,64))
 ##
 
 GST_BAD_MESON_ARGS := \
+	$(GST_LTO) \
 	-Dauto_features=disabled \
 	-Dintrospection=disabled \
 	-Dgobject-cast-checks=disabled \
@@ -365,6 +387,7 @@ $(eval $(call rules-meson,gst_bad,64))
 ##
 
 GST_UGLY_MESON_ARGS := \
+	$(GST_LTO) \
 	-Dauto_features=disabled \
 	-Dgobject-cast-checks=disabled \
 	-Dglib-asserts=disabled \
@@ -390,6 +413,7 @@ $(eval $(call rules-meson,gst_ugly,64))
 
 FFMPEG_CONFIGURE_ARGS := \
 	--enable-shared \
+	$(FFMPEG_LTO) \
 	--disable-static \
 	--disable-everything \
 	--disable-programs \
@@ -419,6 +443,9 @@ FFMPEG_CONFIGURE_ARGS := \
 	--enable-decoder=h264 \
 	--enable-decoder=aac \
 	--enable-demuxer=xwma \
+
+FFMPEG_CONFIGURE_ARGS64 = --optflags="$(COMMON_FLAGS) $(COMMON_FLAGS64)"
+FFMPEG_CONFIGURE_ARGS32 = --optflags="$(COMMON_FLAGS) $(COMMON_FLAGS32)"
 
 $(eval $(call rules-source,ffmpeg,$(SRCDIR)/ffmpeg))
 $(eval $(call rules-configure,ffmpeg,32))
@@ -516,7 +543,7 @@ $(eval $(call rules-cmake,openxr,64))
 ## Note 32-bit is not supported by SteamVR, so we don't build it.
 ##
 
-WINEOPENXR_LDFLAGS = -lopenxr_loader
+WINEOPENXR_LDFLAGS = -lopenxr_loader -lvulkan
 WINEOPENXR_DEPENDS = wine openxr
 
 $(eval $(call rules-source,wineopenxr,$(SRCDIR)/wineopenxr))
@@ -593,6 +620,9 @@ OPENFST_CONFIGURE_ARGS = \
   --enable-lookahead-fsts \
   --with-pic \
   --disable-bin \
+
+OPENFST_CFLAGS = -mno-bmi2
+OPENFST_CXXFLAGS = -mno-bmi2
 
 $(eval $(call rules-source,openfst,$(SRCDIR)/openfst))
 $(eval $(call rules-autoconf,openfst,32))
@@ -674,7 +704,10 @@ WINE_SOURCE_ARGS = \
   --exclude server/trace.c \
 
 WINE_CONFIGURE_ARGS = \
+  --with-x \
+  --with-gstreamer \
   --with-mingw \
+  --without-oss \
   --disable-tests
 
 WINE_CONFIGURE_ARGS32 = \
@@ -737,9 +770,13 @@ DXVK_SOURCE_DATE_EPOCH64 := $(shell expr $(BASE_SOURCE_DATE_EPOCH64) - 1)
 DXVK_SOURCE_ARGS = \
   --exclude version.h.in \
 
+DXVK_MESON_ARGS = --force-fallback-for=libdisplay-info
 DXVK_MESON_ARGS32 = --bindir=$(DXVK_DST32)/lib/wine/dxvk
 DXVK_MESON_ARGS64 = --bindir=$(DXVK_DST64)/lib64/wine/dxvk
 DXVK_DEPENDS = glslang
+
+DXVK_CPPFLAGS = -msse -msse2
+DXVK_LDFLAGS = -static -static-libgcc -static-libstdc++
 
 $(eval $(call rules-source,dxvk,$(SRCDIR)/dxvk))
 $(eval $(call rules-meson,dxvk,32,CROSS))
@@ -767,6 +804,9 @@ $(OBJ)/.dxvk-post-build32:
 
 DXVK_NVAPI_MESON_ARGS32 = --bindir=$(DXVK_NVAPI_DST32)/lib/wine/nvapi
 DXVK_NVAPI_MESON_ARGS64 = --bindir=$(DXVK_NVAPI_DST64)/lib64/wine/nvapi
+
+DXVK_NVAPI_CPPFLAGS = -msse -msse2
+DXVK_NVAPI_LDFLAGS = -static -static-libgcc -static-libstdc++
 
 $(eval $(call rules-source,dxvk-nvapi,$(SRCDIR)/dxvk-nvapi))
 $(eval $(call rules-meson,dxvk-nvapi,32,CROSS))
@@ -849,6 +889,9 @@ VKD3D_PROTON_DEPENDS = glslang
 ifneq ($(UNSTRIPPED_BUILD),)
 	VKD3D_PROTON_MESON_ARGS = -Denable_trace=true
 endif
+
+VKD3D_PROTON_CPPFLAGS = -msse -msse2
+VKD3D_PROTON_LDFLAGS = -static -static-libgcc -static-libstdc++
 
 $(eval $(call rules-source,vkd3d-proton,$(SRCDIR)/vkd3d-proton))
 $(eval $(call rules-meson,vkd3d-proton,32,CROSS))
@@ -1120,14 +1163,14 @@ $(FONTS_OBJ)/source-han/%.ttf: $$(%.ttf_CIDFONT) $$(%.ttf_FEATURES) $$(%.ttf_SEQ
 	mkdir -p $(FONTS_OBJ)/source-han
 	# Do not immediately create the target file, so that make is interrupted
 	# it will restart again
-	afdko makeotfexe -f $($(notdir $@)_CIDFONT) -omitMacNames -ff $($(notdir $@)_FEATURES) \
+	makeotfexe -f $($(notdir $@)_CIDFONT) -omitMacNames -ff $($(notdir $@)_FEATURES) \
 		-lic ADOBE -mf $($(notdir $@)_MENUNAMEDB) -r -nS -cs 25 -ch $($(notdir $@)_UNISOURCE) \
 		-ci $($(notdir $@)_SEQUENCES) -o $@.tmp
-	afdko tx -cff +S -no_futile $($(notdir $@)_CIDFONT) $@.cff
+	tx -cff +S -no_futile $($(notdir $@)_CIDFONT) $@.cff
 	# sftnedit uses a hardcoded temporary file in the local directory, so we have
 	# to run it in a dedicated temporary directory to prevent concurrent instances
 	# to step onto each other's feet
-	(TEMP_DIR=`mktemp -d` && cd $$TEMP_DIR && afdko sfntedit -a CFF=$(abspath $($(notdir $@)).cff) $(abspath $@.tmp) && rm -fr $$TEMP_DIR)
+	(TEMP_DIR=`mktemp -d` && cd $$TEMP_DIR && sfntedit -a CFF=$(abspath $($(notdir $@)).cff) $(abspath $@.tmp) && rm -fr $$TEMP_DIR)
 	mv $@.tmp $@
 
 $(FONTS_OBJ)/ume-gothic/%.ttf: $$(%.ttf_FONT) $$(%.ttf_NAMETABLE_PATCH)
@@ -1137,12 +1180,12 @@ $(FONTS_OBJ)/ume-gothic/%.ttf: $$(%.ttf_FONT) $$(%.ttf_NAMETABLE_PATCH)
 	ttx -o $@ -m $($(notdir $@)_FONT) $(FONTS_OBJ)/ume-gothic/$(notdir $(basename $($(notdir $@)_NAMETABLE_PATCH))).ttx
 
 $(simsun.ttc): $(simsun.ttf) $(nsimsun.ttf)
-	afdko otf2otc -o $@.tmp $^
-	afdko otf2ttf -o $@ $@.tmp
+	otf2otc -o $@.tmp $^
+	otf2ttf -o $@ $@.tmp
 	rm $@.tmp
 
 $(msgothic.ttc): $(msgothic.ttf) $(mspgothic.ttf) $(msuigothic.ttf)
-	afdko otf2otc -o $@ $^
+	otf2otc -o $@ $^
 
 $(micross.ttf): $(FONTS)/scripts/merge.py $(noto_sans.ttf) $(noto_sans_arabic.ttf) $(noto_sans_armenian.ttf) $(noto_sans_bengali.ttf) $(noto_sans_coptic.ttf) \
 		$(noto_sans_georgian.ttf) $(noto_sans_gujarati.ttf) $(noto_sans_hebrew.ttf) $(noto_sans_khmer.ttf) $(noto_sans_tamil.ttf) \
@@ -1318,8 +1361,8 @@ all-dist: $(DIST_OVR32) $(DIST_OVR64)
 ##
 
 default_pfx: wine gst_good gst_bad gst_libav gst_plugins_rs lsteamclient steamexe vrclient wineopenxr dxvk dxvk-nvapi vkd3d-proton
-	find $(DST_LIBDIR32)/wine -type f -execdir chmod a-w '{}' '+'
-	find $(DST_LIBDIR64)/wine -type f -execdir chmod a-w '{}' '+'
+	find $(DST_LIBDIR32)/wine -type f -execdir chmod go-w '{}' '+'
+	find $(DST_LIBDIR64)/wine -type f -execdir chmod go-w '{}' '+'
 	rm -rf $(abspath $(DIST_PREFIX))
 	python3 $(SRCDIR)/default_pfx.py $(abspath $(DIST_PREFIX)) $(abspath $(DST_DIR))
 
@@ -1452,7 +1495,6 @@ ifeq ($(ENABLE_CCACHE),1)
 	export CCACHE_DIR := $(if $(CCACHE_DIR),$(CCACHE_DIR),$(HOME)/.ccache)
 	override DOCKER_OPTS := -v $(CCACHE_DIR):$(CCACHE_DIR)$(CONTAINER_MOUNT_OPTS) $(CCACHE_ENV) -e CCACHE_DIR=$(CCACHE_DIR) $(DOCKER_OPTS)
 else
-	export CCACHE_DISABLE := 1
 	override DOCKER_OPTS := $(CCACHE_ENV) -e CCACHE_DISABLE=1 $(DOCKER_OPTS)
 endif
 
@@ -1467,9 +1509,6 @@ ifeq ($(CONTAINER_ENGINE),)
 	CONTAINER_ENGINE := docker
 endif
 
-DOCKER_BASE = $(CONTAINER_ENGINE) run --rm -v $(SRC):$(SRC)$(CONTAINER_MOUNT_OPTS) -v $(OBJ):$(OBJ)$(CONTAINER_MOUNT_OPTS) \
-                -w $(OBJ) -e MAKEFLAGS \
-                $(DOCKER_OPTS) $(STEAMRT_IMAGE)
 
 .PHONY: dist deploy redist symstore-tarball
 .DEFAULT dist deploy redist symstore-tarball:
