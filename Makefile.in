@@ -240,16 +240,35 @@ FFMPEG_CONFIGURE_ARGS := \
 	--disable-programs \
 	--disable-doc \
 	--disable-inline-asm \
+	--enable-decoder=indeo5 \
+	--enable-decoder=adpcm_ms \
+	--enable-decoder=mpegvideo \
+	--enable-decoder=mpeg1video \
+	--enable-decoder=mp2 \
+	--enable-decoder=mpeg4 \
+	--enable-decoder=msmpeg4v1 \
+	--enable-decoder=msmpeg4v2 \
+	--enable-decoder=msmpeg4v3 \
+	--enable-decoder=vc1 \
+	--enable-decoder=vc1image \
+	--enable-decoder=wmav1 \
+	--enable-decoder=wmav2 \
+	--enable-decoder=wmapro \
+	--enable-decoder=wmalossless \
+	--enable-decoder=xma1 \
+	--enable-decoder=xma2 \
+	--enable-decoder=wmv3image \
+	--enable-decoder=wmv3 \
+	--enable-decoder=wmv2 \
+	--enable-decoder=wmv1 \
+	--enable-decoder=h264 \
+	--enable-decoder=aac \
+	--enable-demuxer=xwma \
 
 $(eval $(call rules-source,ffmpeg,$(SRCDIR)/ffmpeg))
 $(eval $(call rules-configure,ffmpeg,32))
 $(eval $(call rules-configure,ffmpeg,64))
 
-## Only use ffmpeg to build gst-libav; we don't ship it.
-$(OBJ)/.ffmpeg-dist32:
-	touch $@
-$(OBJ)/.ffmpeg-dist64:
-	touch $@
 
 ##
 ## gst-libav
