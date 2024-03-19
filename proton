@@ -1762,8 +1762,20 @@ if __name__ == "__main__":
     elif sys.argv[1] == "waitforexitandrun":
         #wait for wineserver to shut down
         g_session.run_proc([g_proton.wineserver_bin, "-w"])
+        winedrv = "x11"
+        if os.environ.get("PROTON_ENABLE_WAYLAND", False) and os.environ["PROTON_ENABLE_WAYLAND"] == "1":
+            del os.environ["DISPLAY"]
+            winedrv = "wayland"
+        g_session.run_proc(
+            [g_proton.wine_bin, "reg.exe", "add", "HKCU\\Software\\Wine\\Drivers", "/v", "Graphics", "/d", f"{winedrv}", "/f"]
+        )
+        g_session.run_proc([g_proton.wineserver_bin, "-w"])
         #then run
         rc = g_session.run()
+        g_session.run_proc(
+            [g_proton.wine_bin, "reg.exe", "add", "HKCU\\Software\\Wine\\Drivers", "/v", "Graphics", "/d", "x11", "/f"]
+        )
+        g_session.run_proc([g_proton.wineserver_bin, "-w"])
     elif sys.argv[1] == "runinprefix":
         rc = g_session.run_proc([g_proton.wine_bin] + sys.argv[2:])
     elif sys.argv[1] == "destroyprefix":
