@@ -674,7 +674,6 @@ WINE_SOURCE_ARGS = \
   --exclude server/trace.c \
 
 WINE_CONFIGURE_ARGS = \
-  --enable-werror \
   --with-mingw \
   --disable-tests
 
