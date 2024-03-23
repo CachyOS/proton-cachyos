@@ -16,6 +16,9 @@
 [submodule "gst-orc"]
 	path = gst-orc
 	url = https://github.com/GStreamer/orc.git
+[submodule "protonfixes"]
+	path = protonfixes
+	url = https://github.com/Open-Wine-Components/umu-protonfixes
 [submodule "vkd3d-proton"]
 	path = vkd3d-proton
 	url = https://github.com/HansKristian-Work/vkd3d-proton
