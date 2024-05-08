@@ -1514,6 +1514,12 @@ class Session:
         self.check_environment("PROTON_FORCE_NVAPI", "forcenvapi")
         self.check_environment("PROTON_HIDE_APU", "hideapu")
 
+        #disable Proton Media Converter
+        self.env["PROTON_AUDIO_CONVERT"] = "0"
+        self.env["PROTON_AUDIO_CONVERT_BIN"] = "0"
+        self.env["PROTON_VIDEO_CONVERT"] = "0"
+        self.env["PROTON_DEMUX"] = "0"
+
         if "noesync" in self.compat_config:
             self.env.pop("WINEESYNC", "")
         else:
