@@ -626,6 +626,9 @@ WINE_CONFIGURE_ARGS64 = --enable-win64 \
   VKD3D_PE_CFLAGS="-I$(VULKAN_HEADERS_DST64)/include -I$(VKD3D_DST64)/include/vkd3d" \
   VKD3D_PE_LIBS="-L$(VKD3D_DST64)/bin -l:libvkd3d-1.dll -l:libvkd3d-shader-1.dll"
 
+WINE_CFLAGS = \
+  -Wno-incompatible-pointer-types \
+
 WINE_DEPENDS = gst_orc gstreamer gst_base vkd3d
 
 $(eval $(call rules-source,wine,$(SRCDIR)/wine))
