@@ -1246,6 +1246,13 @@ def default_compat_config():
             ret.add("noesync")
 
         if appid in [
+                "1237970", #Titanfall 2
+                ]:
+            for idx, arg in enumerate(sys.argv):
+                if '-northstar' in arg:
+                    ret.add("northstar")
+
+        if appid in [
                 # disable dxvknvapi for titles which dislike it
                 "1088850", #Marvel's Guardians of the Galaxy
                 "1418100", #Swords of Legends Online
@@ -1574,6 +1581,9 @@ class Session:
 
         if "vkd3dbindlesstb" in self.compat_config:
             append_to_env_str(self.env, "VKD3D_CONFIG", "force_bindless_texel_buffer", ",")
+
+        if "northstar" in self.compat_config:
+            append_to_env_str(self.env, "WINEDLLOVERRIDES", "wsock32=n,b", ";")
 
         if "vkd3dfl12" in self.compat_config:
             if "VKD3D_FEATURE_LEVEL" not in self.env:
