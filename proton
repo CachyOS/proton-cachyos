@@ -490,6 +490,7 @@ class Proton:
         self.wine_bin = self.bin_dir + "wine"
         self.wine64_bin = self.bin_dir + "wine64"
         self.wineserver_bin = self.bin_dir + "wineserver"
+        self.dist_lock = FileLock(self.path("dist.lock"), timeout=-1)
 
     def path(self, d):
         return self.base_dir + d
@@ -1785,6 +1786,8 @@ if __name__ == "__main__":
 
     g_proton = Proton(os.path.dirname(sys.argv[0]))
 
+    g_proton.cleanup_legacy_dist()
+    g_proton.do_steampipe_fixups()
 
     g_compatdata = CompatData(os.environ["STEAM_COMPAT_DATA_PATH"])
 
@@ -1796,8 +1799,7 @@ if __name__ == "__main__":
     os.environ["PROTON_DLL_COPY"] = "*"
 
     if g_proton.missing_default_prefix():
-        log("Default prefix is missing, something is very wrong.")
-        sys.exit(1)
+        g_proton.make_default_prefix()
 
     g_session.init_session(sys.argv[1] != "runinprefix")
 
