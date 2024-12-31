@@ -48,7 +48,6 @@ $$(OBJ)/.$(1)-configure$(3): $$($(2)_SRC)/meson.build
 
 	env $$($(2)_ENV$(3)) \
 	meson "$$($(2)_OBJ$(3))" "$$($(2)_SRC)" \
-	      --wrap-mode=nodownload \
 	      --prefix="$$($(2)_DST$(3))" \
 	      --libdir="lib$(subst 32,,$(3))" \
 	      --buildtype=plain \
@@ -62,7 +61,7 @@ $$(OBJ)/.$(1)-configure$(3): $$($(2)_SRC)/meson.build
 $$(OBJ)/.$(1)-build$(3):
 	@echo ":: building $(3)bit $(1)..." >&2
 	+env $$($(2)_ENV$(3)) \
-	ninja -j$$(SUBJOBS) -C "$$($(2)_OBJ$(3))" install $(-v?)
+	ninja -C "$$($(2)_OBJ$(3))" install
 	touch $$@
 endef
 
