@@ -490,7 +490,6 @@ class Proton:
         self.wine_bin = self.bin_dir + "wine"
         self.wine64_bin = self.bin_dir + "wine64"
         self.wineserver_bin = self.bin_dir + "wineserver"
-        self.dist_lock = FileLock(self.path("dist.lock"), timeout=-1)
 
     def path(self, d):
         return self.base_dir + d
@@ -1007,6 +1006,15 @@ class CompatData:
                         prefix=self.prefix_dir, track_file=tracked_files, link_debug=True)
                 try_copy(g_proton.lib_dir + "vkd3d/libvkd3d-shader-1.dll", "drive_c/windows/syswow64",
                         prefix=self.prefix_dir, track_file=tracked_files, link_debug=True)
+                #copy mingw DLL dependencies for libvkd3d
+                try_copy(g_proton.lib64_dir + "vkd3d/libgcc_s_seh-1.dll", "drive_c/windows/system32",
+                        prefix=self.prefix_dir, track_file=tracked_files, link_debug=True)
+                try_copy(g_proton.lib_dir + "vkd3d/libgcc_s_dw2-1.dll", "drive_c/windows/syswow64",
+                        prefix=self.prefix_dir, track_file=tracked_files, link_debug=True)
+                try_copy(g_proton.lib64_dir + "vkd3d/libwinpthread-1.dll", "drive_c/windows/system32",
+                        prefix=self.prefix_dir, track_file=tracked_files, link_debug=True)
+                try_copy(g_proton.lib_dir + "vkd3d/libwinpthread-1.dll", "drive_c/windows/syswow64",
+                        prefix=self.prefix_dir, track_file=tracked_files, link_debug=True)
 
                 if use_wined3d:
                     dxvkfiles = []
@@ -1098,9 +1106,6 @@ class CompatData:
 
             setup_game_dir_drive()
             setup_steam_dir_drive()
-
-            # add Steam ffmpeg libraries to path
-            prepend_to_env_str(g_session.env, ld_path_var, steamdir + "/ubuntu12_64/video/:" + steamdir + "/ubuntu12_32/video/", ":")
 
 def comma_escaped(s):
     escaped = False
@@ -1536,6 +1541,12 @@ class Session:
         self.check_environment("PROTON_FORCE_NVAPI", "forcenvapi")
         self.check_environment("PROTON_HIDE_APU", "hideapu")
 
+        #disable Proton Media Converter
+        self.env["PROTON_AUDIO_CONVERT"] = "0"
+        self.env["PROTON_AUDIO_CONVERT_BIN"] = "0"
+        self.env["PROTON_VIDEO_CONVERT"] = "0"
+        self.env["PROTON_DEMUX"] = "0"
+
         if "noesync" in self.compat_config:
             self.env.pop("WINEESYNC", "")
         else:
@@ -1776,8 +1787,6 @@ if __name__ == "__main__":
 
     g_proton = Proton(os.path.dirname(sys.argv[0]))
 
-    g_proton.cleanup_legacy_dist()
-    g_proton.do_steampipe_fixups()
 
     g_compatdata = CompatData(os.environ["STEAM_COMPAT_DATA_PATH"])
 
@@ -1789,7 +1798,8 @@ if __name__ == "__main__":
     os.environ["PROTON_DLL_COPY"] = "*"
 
     if g_proton.missing_default_prefix():
-        g_proton.make_default_prefix()
+        log("Default prefix is missing, something is very wrong.")
+        sys.exit(1)
 
     g_session.init_session(sys.argv[1] != "runinprefix")
 
@@ -1823,8 +1833,20 @@ if __name__ == "__main__":
     elif sys.argv[1] == "waitforexitandrun":
         #wait for wineserver to shut down
         g_session.run_proc([g_proton.wineserver_bin, "-w"])
+        winedrv = "x11"
+        if os.environ.get("PROTON_ENABLE_WAYLAND", False) and os.environ["PROTON_ENABLE_WAYLAND"] == "1":
+            del os.environ["DISPLAY"]
+            winedrv = "wayland"
+        g_session.run_proc(
+            [g_proton.wine_bin, "reg.exe", "add", "HKCU\\Software\\Wine\\Drivers", "/v", "Graphics", "/d", f"{winedrv}", "/f"]
+        )
+        g_session.run_proc([g_proton.wineserver_bin, "-w"])
         #then run
         rc = g_session.run()
+        g_session.run_proc(
+            [g_proton.wine_bin, "reg.exe", "add", "HKCU\\Software\\Wine\\Drivers", "/v", "Graphics", "/d", "x11", "/f"]
+        )
+        g_session.run_proc([g_proton.wineserver_bin, "-w"])
     elif sys.argv[1] == "runinprefix":
         rc = g_session.run_proc([g_proton.wine_bin] + sys.argv[2:])
     elif sys.argv[1] == "destroyprefix":

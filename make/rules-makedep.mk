@@ -45,9 +45,9 @@ $$(OBJ)/.$(1)-configure$(3):
 $$(OBJ)/.$(1)-build$(3):
 	@echo ":: building $(3)bit $(1)..." >&2
 	+cd "$$($(2)_OBJ$(3))" && env $$($(2)_ENV$(3)) \
-	$$(BEAR) $$(MAKE)
+	$$(BEAR) $$(MAKE) -j$$(SUBJOBS)
 	cd "$$($(2)_OBJ$(3))" && env $$($(2)_ENV$(3)) \
-	$$(MAKE) install
+	$$(MAKE) -j$$(SUBJOBS) install
 	touch $$@
 endef
 
