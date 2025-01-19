@@ -720,6 +720,7 @@ WINE_CONFIGURE_ARGS64 = --enable-win64 \
   VKD3D_PE_LIBS="-L$(VKD3D_DST64)/bin -l:libvkd3d-1.dll -l:libvkd3d-shader-1.dll"
 
 WINE_CFLAGS = \
+  -DNDEBUG \
   -Wno-incompatible-pointer-types \
 
 WINE_DEPENDS = gst_orc gstreamer gst_base vkd3d openfst kaldi vosk
