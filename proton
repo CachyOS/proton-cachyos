@@ -1514,6 +1514,7 @@ class Session:
         self.check_environment("PROTON_DISABLE_NVAPI", "disablenvapi")
         self.check_environment("PROTON_FORCE_NVAPI", "forcenvapi")
         self.check_environment("PROTON_HIDE_APU", "hideapu")
+        self.check_environment("PROTON_NO_WM_DECORATION", "nowmdecoration")
 
         #disable Proton Media Converter
         self.env["PROTON_AUDIO_CONVERT"] = "0"
@@ -1576,6 +1577,9 @@ class Session:
 
         if "hideapu" in self.compat_config:
             self.env["WINE_HIDE_APU"] = "1"
+
+        if "nowmdecoration" in self.compat_config:
+            self.env["WINE_NO_WM_DECORATION"] = "1"
 
         if "usenativexinput13" in self.compat_config:
             self.dlloverrides["xinput1_3"] = "n"
