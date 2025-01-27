@@ -23,8 +23,8 @@ pkgconfig = '$$$$PKG_CONFIG'
 
 [properties]
 needs_exe_wrapper = true
-c_args = [$$(call list-quote,$$($(2)_INCFLAGS$(3)) $$($(2)_CPPFLAGS) $$(COMMON_FLAGS) $$(COMMON_FLAGS$(3)))]
-cpp_args = [$$(call list-quote,$$($(2)_INCFLAGS$(3)) $$($(2)_CPPFLAGS) $$(COMMON_FLAGS) $$(COMMON_FLAGS$(3)) -std=c++17)]
+c_args = [$$(call list-quote,$$($(2)_INCFLAGS$(3)) $$($(2)_CPPFLAGS) $$(COMMON_FLAGS) $$(COMMON_FLAGS$(3)) $$($(2)_FLAGS$(3)))]
+cpp_args = [$$(call list-quote,$$($(2)_INCFLAGS$(3)) $$($(2)_CPPFLAGS) $$(COMMON_FLAGS) $$(COMMON_FLAGS$(3)) $$($(2)_FLAGS$(3)) -std=c++17)]
 link_args = [$$(call list-quote,$$($(2)_LIBFLAGS$(3)) $$($(2)_LDFLAGS$(3)) $$($(2)_LDFLAGS) $$(CROSSLDFLAGS))]
 pkg_config_libdir = '$$$$CROSSPKG_CONFIG_LIBDIR'
 
@@ -48,6 +48,7 @@ $$(OBJ)/.$(1)-configure$(3): $$($(2)_SRC)/meson.build
 
 	env $$($(2)_ENV$(3)) \
 	meson "$$($(2)_OBJ$(3))" "$$($(2)_SRC)" \
+	      --wrap-mode=nodownload \
 	      --prefix="$$($(2)_DST$(3))" \
 	      --libdir="lib$(subst 32,,$(3))" \
 	      --buildtype=plain \
@@ -61,7 +62,7 @@ $$(OBJ)/.$(1)-configure$(3): $$($(2)_SRC)/meson.build
 $$(OBJ)/.$(1)-build$(3):
 	@echo ":: building $(3)bit $(1)..." >&2
 	+env $$($(2)_ENV$(3)) \
-	ninja -C "$$($(2)_OBJ$(3))" install
+	ninja -j$$(SUBJOBS) -C "$$($(2)_OBJ$(3))" install $(-v?)
 	touch $$@
 endef
 
