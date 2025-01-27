@@ -779,8 +779,8 @@ DXVK_MESON_ARGS32 = --bindir=$(DXVK_DST32)/lib/wine/dxvk
 DXVK_MESON_ARGS64 = --bindir=$(DXVK_DST64)/lib64/wine/dxvk
 DXVK_DEPENDS = glslang
 
-DXVK_FLAGS64 = -O3 -mprefer-avx128
-DXVK_FLAGS32 = -O3 -mprefer-avx128 -mpreferred-stack-boundary=2
+DXVK_FLAGS64 = -O3
+DXVK_FLAGS32 = -O3 -mpreferred-stack-boundary=2
 DXVK_CPPFLAGS = -msse -msse2
 DXVK_LDFLAGS = -static -static-libgcc -static-libstdc++
 
@@ -811,8 +811,8 @@ $(OBJ)/.dxvk-post-build32:
 DXVK_NVAPI_MESON_ARGS32 = --bindir=$(DXVK_NVAPI_DST32)/lib/wine/nvapi
 DXVK_NVAPI_MESON_ARGS64 = --bindir=$(DXVK_NVAPI_DST64)/lib64/wine/nvapi
 
-DXVK_NVAPI_FLAGS64 = -O3 -mprefer-avx128
-DXVK_NVAPI_FLAGS32 = -O3 -mprefer-avx128 -mpreferred-stack-boundary=2
+DXVK_NVAPI_FLAGS64 = -O3
+DXVK_NVAPI_FLAGS32 = -O3 -mpreferred-stack-boundary=2
 DXVK_NVAPI_CPPFLAGS = -msse -msse2
 DXVK_NVAPI_LDFLAGS = -static -static-libgcc -static-libstdc++
 
@@ -898,8 +898,8 @@ ifneq ($(UNSTRIPPED_BUILD),)
 	VKD3D_PROTON_MESON_ARGS = -Denable_trace=true
 endif
 
-VKD3D_PROTON_FLAGS64 = -O3 -mprefer-avx128
-VKD3D_PROTON_FLAGS32 = -O3 -mprefer-avx128 -mpreferred-stack-boundary=2
+VKD3D_PROTON_FLAGS64 = -O3
+VKD3D_PROTON_FLAGS32 = -O3 -mpreferred-stack-boundary=2
 VKD3D_PROTON_CPPFLAGS = -msse -msse2
 VKD3D_PROTON_LDFLAGS = -static -static-libgcc -static-libstdc++
 
