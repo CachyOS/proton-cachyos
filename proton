@@ -300,8 +300,24 @@ def setup_dir_drive(compat_option, drive_name, dest_dir):
         elif file_exists(drive_path, follow_symlinks=False):
             os.remove(drive_path)
 
+def is_directory_empty(dir_path):
+    # Check if the directory is empty
+    return not any(os.scandir(dir_path))
+
 def setup_game_dir_drive():
-        setup_dir_drive("gamedrive", "s:", try_get_game_library_dir())
+        if os.environ.get('UMU_ID', ''):
+            drive_map = {
+                "/media": "u:",
+                "/run/media": "v:",
+                "/mnt": "w:",
+                os.path.expanduser("~"): "x:"  # Current user's home directory
+            }
+
+            for directory in drive_map.keys():
+                if os.path.exists(directory) and not is_directory_empty(directory):
+                    setup_dir_drive("gamedrive", drive_map[directory], directory)
+        else:
+            setup_dir_drive("gamedrive", "s:", try_get_game_library_dir())
 
 def setup_steam_dir_drive():
         setup_dir_drive("steamdrive", "t:", try_get_steam_dir())
@@ -1229,6 +1245,13 @@ def default_compat_config():
             ret.add("noesync")
 
         if appid in [
+                "1237970", #Titanfall 2
+                ]:
+            for idx, arg in enumerate(sys.argv):
+                if '-northstar' in arg:
+                    ret.add("northstar")
+
+        if appid in [
                 # disable dxvknvapi for titles which dislike it
                 "1088850", #Marvel's Guardians of the Galaxy
                 "1418100", #Swords of Legends Online
@@ -1297,6 +1320,10 @@ def default_compat_config():
                 "255960", #Bad Mojo Redux
                 ]:
             ret.add("gamedrive")
+
+    # hack to force gamedrive compat_config always for umu
+    if os.environ.get('UMU_ID', ''):
+        ret.add("gamedrive")
 
         if appid in [
                 "275850", #No Man's Sky
@@ -1553,6 +1580,9 @@ class Session:
         if "vkd3dbindlesstb" in self.compat_config:
             append_to_env_str(self.env, "VKD3D_CONFIG", "force_bindless_texel_buffer", ",")
 
+        if "northstar" in self.compat_config:
+            append_to_env_str(self.env, "WINEDLLOVERRIDES", "wsock32=n,b", ";")
+
         if "vkd3dfl12" in self.compat_config:
             if "VKD3D_FEATURE_LEVEL" not in self.env:
                 self.env["VKD3D_FEATURE_LEVEL"] = "12_0"
@@ -1710,6 +1740,18 @@ class Session:
                     "1549250",  # Undecember
                 ]:
             argv = [g_proton.wine_bin, "c:\\Program Files (x86)\\Steam\\steam.exe"]
+        # Don't use steam if it's not a steam game
+        # Prevent this warning for non-steam games:
+        # [S_API FAIL] SteamAPI_Init() failed; no appID found.
+        # Either launch the game from Steam, or put the file steam_appid.txt containing the correct appID in your game folder.
+        elif "UMU_ID" in os.environ:
+            log(sys.argv[2])
+            if len(sys.argv) >=  3 and sys.argv[2].startswith('/'):
+                log("Executable a unix path, launching with /unix option.")
+                argv = [g_proton.wine64_bin, "start", "/unix"]
+            else:
+                log("Executable is inside wine prefix, launching normally.")
+                argv = [g_proton.wine64_bin]
         else:
             argv = [g_proton.wine64_bin, "c:\\windows\\system32\\steam.exe"]
 
@@ -1742,10 +1784,33 @@ if __name__ == "__main__":
 
     g_session.init_wine()
 
+    # This is needed for protonfixes
+    os.environ["PROTON_DLL_COPY"] = "*"
+
     if g_proton.missing_default_prefix():
         g_proton.make_default_prefix()
 
     g_session.init_session(sys.argv[1] != "runinprefix")
+
+    # Allow umu clients to run winetricks verbs and be the frontend for them
+    if (
+        g_session.env.get("UMU_ID")
+        and g_session.env.get("EXE", "").endswith("winetricks")
+        and g_session.env.get("PROTON_VERB") == "waitforexitandrun"
+    ):
+        wt_verbs = " ".join(sys.argv[2:][2:])
+        g_session.env["WINE"] = g_proton.wine_bin
+        g_session.env["WINELOADER"] = g_proton.wine_bin
+        g_session.env["WINESERVER"] = g_proton.wineserver_bin
+        g_session.env["WINETRICKS_LATEST_VERSION_CHECK"] = "disabled"
+        g_session.env["LD_PRELOAD"] = ""
+
+        log(f"Running winetricks verbs in prefix: {wt_verbs}")
+        rc = subprocess.run(sys.argv[2:], check=False, env=g_session.env).returncode
+
+        sys.exit(rc)
+
+    import protonfixes
 
     #determine mode
     rc = 0
