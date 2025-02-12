@@ -69,3 +69,6 @@
 	path = piper
 	url = https://github.com/shaunren/piper.git
 	branch = library
+[submodule "protonfixes"]
+        path = protonfixes
+        url = https://github.com/Open-Wine-Components/umu-protonfixes
