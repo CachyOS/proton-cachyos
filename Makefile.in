@@ -1540,9 +1540,9 @@ redist: all
 	mkdir -p $(REDIST_DIR)
 	rsync --delete -arx $(DST_BASE)/ $(REDIST_DIR)
 	mv $(REDIST_DIR) $(BUILD_NAME)
-	tar -cvzf $(BUILD_NAME).tar.gz $(BUILD_NAME)
-	sha512sum $(BUILD_NAME).tar.gz > $(BUILD_NAME).sha512sum
-	@echo "Proton build available at $(BUILD_NAME).tar.gz"
+	XZ_OPT="-9 -T$(J)" tar -cvJf $(BUILD_NAME).tar.xz $(BUILD_NAME)
+	sha512sum $(BUILD_NAME).tar.xz > $(BUILD_NAME).sha512sum
+	@echo "Proton build available at $(BUILD_NAME).tar.xz"
 
 
 ##
