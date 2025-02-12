@@ -115,7 +115,11 @@ $(2)_LIBFLAGS$(3) = $$(foreach d,$$($(2)_DEPS$(3)),-L$$($$(d)_LIBDIR$(3))) \
 
 
 $(2)_ENV$(3) = \
+    WINEDEBUG="-all" \
+    WINEPREFIX="$$(OBJ)/pfx-wine$(3)" \
+    WINEDLLOVERRIDES="winemenubuilder=d;" \
     CARGO_TARGET_$$(call toupper,$$(CARGO_TARGET_$(3)))_LINKER="$$(TARGET_$(4)$(3))-gcc" \
+    CARGO_TARGET_$$(call toupper,$$(CARGO_TARGET_$(3)))_RUSTFLAGS="$$(RUSTFLAGS)" \
     CCACHE_BASEDIR="$$(CCACHE_BASEDIR)" \
     STRIP="$$(STRIP)" \
     AR="$$(TARGET_$(4)$(3))-ar" \
@@ -129,7 +133,7 @@ $(2)_ENV$(3) = \
     PATH="$$(call list-join,:,$$(foreach d,$$($(2)_DEPS$(3)),$$($$(d)_BINDIR$(3))),,:):$$$$PATH" \
     LD_LIBRARY_PATH="$$(call list-join,:,$$(foreach d,$$($(2)_DEPS$(3)),$$($$(d)_LIBDIR$(3))),,:)$$$$LD_LIBRARY_PATH" \
     PKG_CONFIG_PATH="$$(call list-join,:,$$(foreach d,$$($(2)_DEPS$(3)),$$($$(d)_LIBDIR$(3))/pkgconfig))" \
-    PKG_CONFIG_LIBDIR="/usr/lib/$$(PKG_CONFIG_TARGET_$(4)$(3))/pkgconfig:/usr/share/pkgconfig" \
+    PKG_CONFIG_LIBDIR="/usr/lib$(3)/pkgconfig:/usr/share/pkgconfig" \
     CFLAGS="$$($(2)_INCFLAGS$(3)) $$($(2)_CFLAGS) $$(COMMON_FLAGS) $$(COMMON_FLAGS$(3))" \
     CPPFLAGS="$$($(2)_INCFLAGS$(3)) $$($(2)_CPPFLAGS) $$(COMMON_FLAGS) $$(COMMON_FLAGS$(3))" \
     CXXFLAGS="$$($(2)_INCFLAGS$(3)) $$($(2)_CXXFLAGS) $$(COMMON_FLAGS) $$(COMMON_FLAGS$(3)) -std=c++17" \
@@ -154,7 +158,7 @@ $(2)_ENV$(3) += \
     CROSSCPPFLAGS="$$($(2)_INCFLAGS$(3)) $$($(2)_CPPFLAGS) $$(COMMON_FLAGS) $$(COMMON_FLAGS$(3))" \
     CROSSCXXFLAGS="$$($(2)_INCFLAGS$(3)) $$($(2)_CXXFLAGS) $$(COMMON_FLAGS) $$(COMMON_FLAGS$(3)) -std=c++17" \
     CROSSLDFLAGS="$$($(2)_LIBFLAGS$(3)) $$($(2)_LDFLAGS$(3)) $$($(2)_LDFLAGS) $$(CROSSLDFLAGS)" \
-    CROSSPKG_CONFIG_LIBDIR="/usr/lib/$$(PKG_CONFIG_TARGET_CROSS$(3))/pkgconfig:/usr/share/pkgconfig" \
+    CROSSPKG_CONFIG_LIBDIR="/usr/lib$(3)/pkgconfig:/usr/share/pkgconfig" \
 
 endif
 
@@ -167,14 +171,14 @@ else
 install-strip = objcopy -p --file-alignment=4096 --strip-debug $(1) $(2)/$(notdir $(1)) && rm -f $(2)/$(notdir $(1)).debug
 endif
 
-TARGET_32 := i686-linux-gnu
-TARGET_64 := x86_64-linux-gnu
+TARGET_32 := i686-pc-linux-gnu
+TARGET_64 := x86_64-pc-linux-gnu
 TARGET_CROSS32 := i686-w64-mingw32
 TARGET_CROSS64 := x86_64-w64-mingw32
 
-PKG_CONFIG_TARGET_32 := i386-linux-gnu
-PKG_CONFIG_TARGET_64 := x86_64-linux-gnu
-PKG_CONFIG_TARGET_CROSS32 := i386-w64-mingw32
+PKG_CONFIG_TARGET_32 := i686-pc-linux-gnu
+PKG_CONFIG_TARGET_64 := x86_64-pc-linux-gnu
+PKG_CONFIG_TARGET_CROSS32 := i686-w64-mingw32
 PKG_CONFIG_TARGET_CROSS64 := x86_64-w64-mingw32
 
 LIBDIR_WINE_32 := wine/i386-unix

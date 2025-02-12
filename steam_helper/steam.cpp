@@ -34,11 +34,15 @@
 
 #include "ntstatus.h"
 #define WIN32_NO_STATUS
+extern "C" {
 #include <windows.h>
+}
 #include <winsvc.h>
 #include <winternl.h>
 #include <shellapi.h>
+extern "C" {
 #include <shlwapi.h>
+}
 #include <string.h>
 #include <stdio.h>
 #include <limits.h>

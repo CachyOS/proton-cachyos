@@ -28,7 +28,7 @@ $$(OBJ)/.$(1)-build$(3):
 	@echo ":: building $(3)bit $(1)..." >&2
 	rsync -arx "$$($(2)_SRC)/" "$$($(2)_OBJ$(3))/"
 	env $$($(2)_ENV$(3)) \
-	$$(MAKE) -C "$$($(2)_OBJ$(3))" LIBRARIES="$$($(2)_LDFLAGS)"
+	$$(MAKE) -j$$(SUBJOBS) -C "$$($(2)_OBJ$(3))" LIBRARIES="$$($(2)_LDFLAGS)"
 	cd "$$($(2)_OBJ$(3))" && touch "$(basename $(4)).spec" && env $$($(2)_ENV$(3)) \
 	winebuild --$(lastword $(subst ., ,$(4))) --fake-module -E "$(basename $(4)).spec" -o "$(4).fake"
 	mkdir -p $$($(2)_LIBDIR$(3))/$(LIBDIR_WINE_$(3))

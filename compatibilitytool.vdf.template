@@ -14,7 +14,7 @@
       "install_path" "."
 
       // For this template, we're going to substitute the display_name key in here, e.g.:
-      "display_name" "##BUILD_NAME##"
+      "display_name" "##BUILD_NAME## (native package)"
 
       "from_oslist"  "windows"
       "to_oslist"    "linux"
