@@ -78,9 +78,9 @@ $$(OBJ)/.$(1)-$(3)-configure: $$(OBJ)/.wine-$$(HOST_ARCH)-tools
 $$(OBJ)/.$(1)-$(3)-build:
 	@echo ":: building $(1)-$(3)..." >&2
 	+cd "$$($(2)_$(3)_OBJ)" && env $$($(2)_$(3)_ENV) \
-	$$(MAKE)
+	$$(MAKE) -j$$(SUBJOBS)
 	cd "$$($(2)_$(3)_OBJ)" && env $$($(2)_$(3)_ENV) \
-	$$(MAKE) install
+	$$(MAKE) -j$$(SUBJOBS) install
 	if [ "$(3)" == "aarch64" ]; then \
 		mkdir -p $$($(2)_$(3)_DST)/lib/wine/aarch64-windows/ && \
 		mv $$($(2)_$(3)_DST)/lib/wine/arm64ec-windows/* $$($(2)_$(3)_DST)/lib/wine/aarch64-windows/; \
