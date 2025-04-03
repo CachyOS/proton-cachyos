@@ -311,12 +311,12 @@ FFMPEG_CONFIGURE_ARGS := \
 	--enable-demuxer=matroska \
 
 FFMPEG_i386-unix_CONFIGURE_ARGS := \
-	--cross-prefix=i686-linux-gnu- \
+	--cross-prefix=i686-pc-linux-gnu- \
 	--arch=x86 \
 	--target-os=linux
 
 FFMPEG_x86_64-unix_CONFIGURE_ARGS := \
-	--cross-prefix=x86_64-linux-gnu- \
+	--cross-prefix=x86_64-pc-linux-gnu- \
 	--arch=x86_64 \
 	--target-os=linux
 
@@ -1157,7 +1157,7 @@ $(FONTS_OBJ)/source-han/%.ttf: $$(%.ttf_CIDFONT) $$(%.ttf_FEATURES) $$(%.ttf_SEQ
 	mkdir -p $(FONTS_OBJ)/source-han
 	# Do not immediately create the target file, so that make is interrupted
 	# it will restart again
-	afdko makeotfexe -f $($(notdir $@)_CIDFONT) -omitMacNames -ff $($(notdir $@)_FEATURES) \
+	afdko makeotf -f $($(notdir $@)_CIDFONT) -omitMacNames -ff $($(notdir $@)_FEATURES) \
 		-lic ADOBE -mf $($(notdir $@)_MENUNAMEDB) -r -nS -cs 25 -ch $($(notdir $@)_UNISOURCE) \
 		-ci $($(notdir $@)_SEQUENCES) -o $@.tmp
 	afdko tx -cff +S -no_futile $($(notdir $@)_CIDFONT) $@.cff
@@ -1542,7 +1542,6 @@ ifeq ($(ENABLE_CCACHE),1)
 	export CCACHE_DIR := $(if $(CCACHE_DIR),$(CCACHE_DIR),$(HOME)/.ccache)
 	override DOCKER_OPTS := -v $(CCACHE_DIR):$(CCACHE_DIR)$(CONTAINER_MOUNT_OPTS) $(CCACHE_ENV) -e CCACHE_DIR=$(CCACHE_DIR) $(DOCKER_OPTS)
 else
-	export CCACHE_DISABLE := 1
 	override DOCKER_OPTS := $(CCACHE_ENV) -e CCACHE_DISABLE=1 $(DOCKER_OPTS)
 endif
 
@@ -1557,9 +1556,6 @@ ifeq ($(CONTAINER_ENGINE),)
 	CONTAINER_ENGINE := docker
 endif
 
-DOCKER_BASE = $(CONTAINER_ENGINE) run --rm -v $(SRC):$(SRC)$(CONTAINER_MOUNT_OPTS) -v $(OBJ):$(OBJ)$(CONTAINER_MOUNT_OPTS) \
-                -w $(OBJ) -e MAKEFLAGS \
-                $(DOCKER_OPTS) $(STEAMRT_IMAGE)
 
 .PHONY: dist deploy redist symstore-tarball
 .DEFAULT dist deploy redist symstore-tarball:
