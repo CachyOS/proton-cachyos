@@ -478,8 +478,8 @@ $(eval $(call rules-cmake,piper,x86_64,unix))
 $(eval $(call rules-cmake,piper,aarch64,unix))
 
 $(OBJ)/.piper-x86_64-post-build:
-	mkdir -p $(PIPER_x86_64_DST)/lib/$(x86_64-unix_TARGET)
-	mv $(PIPER_x86_64_DST)/*.so* $(PIPER_x86_64_DST)/lib/$(x86_64-unix_TARGET)
+	mkdir -p $(PIPER_x86_64_DST)/lib/$(x86_64-unix_LIBDIR)
+	mv $(PIPER_x86_64_DST)/*.so* $(PIPER_x86_64_DST)/lib/$(x86_64-unix_LIBDIR)
 	mkdir -p $(DST_DIR)/share
 	cp -a $(PIPER_x86_64_DST)/{espeak-ng-data,libtashkeel_model.ort} $(DST_DIR)/share/
 	touch $@
