@@ -2188,6 +2188,16 @@ if __name__ == "__main__":
         log("No compat data path?")
         sys.exit(1)
 
+    # unset steam runtime (scout) stuff for native version
+    if "STEAM_RUNTIME" in os.environ:
+        del os.environ["STEAM_RUNTIME"]
+        if "SYSTEM_LD_LIBRARY_PATH" in os.environ:
+            os.environ["LD_LIBRARY_PATH"] = os.environ["SYSTEM_LD_LIBRARY_PATH"]
+            log("Restoring LD_LIBRARY_PATH to: " + str(os.environ["LD_LIBRARY_PATH"]))
+        if "SYSTEM_PATH" in os.environ:
+            os.environ["PATH"] = os.environ["SYSTEM_PATH"]
+            log("Restoring PATH to: " + str(os.environ["PATH"]))
+
     g_proton = Proton(os.path.dirname(sys.argv[0]))
 
     g_proton.cleanup_legacy_dist()
