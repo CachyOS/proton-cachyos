@@ -588,9 +588,6 @@ $(eval $(call rules-cmake,vosk,aarch64,unix))
 ## wine
 ##
 
-# HACK: glib 2.0 in the runtime is old and causes a lot of errors with a newer GCC
-WINE_CFLAGS += -Wno-discarded-qualifiers
-
 WINE_SOURCE_ARGS = \
   --exclude configure \
   --exclude autom4te.cache \
