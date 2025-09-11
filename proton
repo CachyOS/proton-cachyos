@@ -2253,6 +2253,12 @@ if __name__ == "__main__":
     protonfixes.setup_frame_rate(g_session.env, append_to_env_str)
     g_session.check_environment("PROTON_LOCAL_SHADER_CACHE", "localshadercache")
     protonfixes.setup_local_shader_cache(g_session.compat_config, g_session.env)
+    g_session.check_environment("PROTON_FSR3_UPGRADE", "fsr3")
+    g_session.check_environment("PROTON_FSR4_UPGRADE", "fsr4")
+    g_session.check_environment("PROTON_FSR4_RDNA3_UPGRADE", "fsr4rdna3")
+    g_session.check_environment("PROTON_DLSS_UPGRADE", "dlss")
+    g_session.check_environment("PROTON_XESS_UPGRADE", "xess")
+    protonfixes.setup_upscalers(g_session.compat_config, g_session.env, g_compatdata.base_dir, g_compatdata.prefix_dir)
     protonfixes.execute()
 
     #determine mode
