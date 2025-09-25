@@ -1500,6 +1500,11 @@ def default_compat_config():
     if os.environ.get('UMU_ID', ''):
         ret.add("gamedrive")
 
+    if "STORE" in os.environ:
+        store = os.environ["STORE"]
+        if 'battlenet' in store:
+            ret.add("writecopy")
+
     return ret
 
 default_cpu_limit = {
@@ -2004,6 +2009,9 @@ class Session:
 
         if "nohardwarescheduling" in self.compat_config and "WINE_DISABLE_HARDWARE_SCHEDULING" not in self.env:
             self.env["WINE_DISABLE_HARDWARE_SCHEDULING"] = "1"
+
+        if "writecopy" in self.compat_config:
+            self.env["WINE_SIMULATE_WRITECOPY"] = "1"
 
         if "PROTON_CRASH_REPORT_DIR" in self.env:
             self.env["WINE_CRASH_REPORT_DIR"] = self.env["PROTON_CRASH_REPORT_DIR"]
