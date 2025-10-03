@@ -2191,7 +2191,10 @@ class Session:
         # Either launch the game from Steam, or put the file steam_appid.txt containing the correct appID in your game folder.
         elif "UMU_ID" in os.environ:
             log(sys.argv[2])
-            if len(sys.argv) >=  3 and sys.argv[2].startswith('/'):
+            if os.environ.get("UMU_USE_STEAM", "0") == "1":
+                append_to_env_str(self.env, "WINEDLLOVERRIDES", "lsteamclient=d", ";")
+                argv = [g_proton.wine_bin, "c:\\windows\\system32\\steam.exe"]
+            elif len(sys.argv) >= 3 and sys.argv[2].startswith('/'):
                 log("Executable a unix path, launching with /unix option.")
                 argv = [g_proton.wine_bin, "c:\\windows\\system32\\start.exe", "/unix"]
             else:
