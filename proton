@@ -1502,7 +1502,7 @@ def default_compat_config():
 
     if "STORE" in os.environ:
         store = os.environ["STORE"]
-        if 'battlenet' in store:
+        if store in ["battlenet", "ea", "ubisoft"]:
             ret.add("writecopy")
 
     return ret
