@@ -2249,6 +2249,8 @@ if __name__ == "__main__":
     protonfixes.setup(g_session.env, "PATH", ld_path_var, prepend_to_env_str)
     protonfixes.setup_mount_drives(setup_dir_drive)
     protonfixes.winetricks(g_session.env, g_proton.wine_bin, g_proton.wineserver_bin)
+    # HACK: handle DXVK_FRAME_RATE and VKD3D_FRAME_RATE through DXVK_CONFIG
+    protonfixes.setup_frame_rate(g_session.env, append_to_env_str)
     g_session.check_environment("PROTON_LOCAL_SHADER_CACHE", "localshadercache")
     protonfixes.setup_local_shader_cache(g_session.compat_config, g_session.env)
     protonfixes.execute()
