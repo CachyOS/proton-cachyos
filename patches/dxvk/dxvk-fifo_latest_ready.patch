@@ -1,0 +1,207 @@
+From 95630a639fa073dd368dc3bb0ff6e2cb6b3ca3ff Mon Sep 17 00:00:00 2001
+From: Darin Morrison <darinmorrison@gmail.com>
+Date: Wed, 11 Mar 2026 20:17:31 -0600
+Subject: [PATCH 1/4] [vulkan] Add newer present mode enums to vulkan_names
+
+(cherry picked from commit d384e710a0bf2dfbe683d8def881e56e767d6e65)
+Signed-off-by: Darin Morrison <darinmorrison@gmail.com>
+---
+ src/vulkan/vulkan_names.cpp | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/src/vulkan/vulkan_names.cpp b/src/vulkan/vulkan_names.cpp
+index be52650e..4831b654 100644
+--- a/src/vulkan/vulkan_names.cpp
++++ b/src/vulkan/vulkan_names.cpp
+@@ -298,6 +298,9 @@ std::ostream& operator << (std::ostream& os, VkPresentModeKHR e) {
+     ENUM_NAME(VK_PRESENT_MODE_MAILBOX_KHR);
+     ENUM_NAME(VK_PRESENT_MODE_FIFO_KHR);
+     ENUM_NAME(VK_PRESENT_MODE_FIFO_RELAXED_KHR);
++    ENUM_NAME(VK_PRESENT_MODE_SHARED_DEMAND_REFRESH_KHR);
++    ENUM_NAME(VK_PRESENT_MODE_SHARED_CONTINUOUS_REFRESH_KHR);
++    ENUM_NAME(VK_PRESENT_MODE_FIFO_LATEST_READY_KHR);
+     ENUM_DEFAULT(e);
+   }
+   return os;
+-- 
+2.53.0
+
+
+From 6d5e86f8da87e38e57b10d48f5d60c9c36e9c4a1 Mon Sep 17 00:00:00 2001
+From: Darin Morrison <darinmorrison@gmail.com>
+Date: Wed, 11 Mar 2026 20:15:43 -0600
+Subject: [PATCH 2/4] [dxvk] Prefer FIFO_LATEST_READY over MAILBOX
+
+(cherry picked from commit 1df37b45a292ed322bff5a8789b6ecabd4683652)
+Signed-off-by: Darin Morrison <darinmorrison@gmail.com>
+---
+ src/dxvk/dxvk_presenter.cpp | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/dxvk/dxvk_presenter.cpp b/src/dxvk/dxvk_presenter.cpp
+index f0d26515..14121c0c 100644
+--- a/src/dxvk/dxvk_presenter.cpp
++++ b/src/dxvk/dxvk_presenter.cpp
+@@ -1119,7 +1119,7 @@ namespace dxvk {
+           uint32_t                  numSupported,
+     const VkPresentModeKHR*         pSupported,
+           uint32_t                  syncInterval) {
+-    std::array<VkPresentModeKHR, 2> desired = { };
++    std::array<VkPresentModeKHR, 3> desired = { };
+     uint32_t numDesired = 0;
+ 
+     Tristate tearFree = m_device->config().tearFree;
+@@ -1127,6 +1127,7 @@ namespace dxvk {
+     if (!syncInterval) {
+       if (tearFree != Tristate::True)
+         desired[numDesired++] = VK_PRESENT_MODE_IMMEDIATE_KHR;
++      desired[numDesired++] = VK_PRESENT_MODE_FIFO_LATEST_READY_KHR;
+       desired[numDesired++] = VK_PRESENT_MODE_MAILBOX_KHR;
+     } else {
+       if (tearFree == Tristate::False)
+-- 
+2.53.0
+
+
+From 84dcf9f4dae7ec039eb5bc3da3dbd5a9a9843317 Mon Sep 17 00:00:00 2001
+From: Darin Morrison <darinmorrison@gmail.com>
+Date: Wed, 11 Mar 2026 20:28:22 -0600
+Subject: [PATCH 3/4] [dxvk] Update comments to mention FIFO latest ready
+
+(cherry picked from commit db5e8a88ebd0c144e35d74f5e735f21219cdd22e)
+Signed-off-by: Darin Morrison <darinmorrison@gmail.com>
+---
+ dxvk.conf               | 4 ++--
+ src/dxvk/dxvk_options.h | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/dxvk.conf b/dxvk.conf
+index de815a22..cbadb5fd 100644
+--- a/dxvk.conf
++++ b/dxvk.conf
+@@ -217,10 +217,10 @@
+ 
+ # Controls tearing behaviour with regards to in-game Vsync settings.
+ #
+-# True enables the mailbox present mode in case regular Vsync is disabled.
++# True enables the fifo (latest ready) or mailbox present modes in case regular Vsync is disabled.
+ # This eliminates tearing, but may be unsupported on some systems.
+ #
+-# False enables the relaxed fifo present mode in case regular Vsync is enabled.
++# False enables the fifo (relaxed) present mode in case regular Vsync is enabled.
+ # This should result in tearing but reduce stutter if FPS are too low,
+ # but may be unsupported on some systems.
+ #
+diff --git a/src/dxvk/dxvk_options.h b/src/dxvk/dxvk_options.h
+index 71deb596..960d8108 100644
+--- a/src/dxvk/dxvk_options.h
++++ b/src/dxvk/dxvk_options.h
+@@ -41,8 +41,8 @@ namespace dxvk {
+     /// HUD elements
+     std::string hud;
+ 
+-    /// Forces swap chain into MAILBOX (if true)
+-    /// or FIFO_RELAXED (if false) present mode
++    /// Forces swap chain into FIFO_LATEST_READY or
++    /// MAILBOX (if true) or FIFO_RELAXED (if false).
+     Tristate tearFree = Tristate::Auto;
+ 
+     /// Enables latency sleep
+-- 
+2.53.0
+
+
+From 1ed5f93efc0c0ff5b792740dd911a2c44a996cc1 Mon Sep 17 00:00:00 2001
+From: Darin Morrison <darinmorrison@gmail.com>
+Date: Thu, 12 Mar 2026 13:49:09 -0600
+Subject: [PATCH 4/4] [dxvk] Add feature enable for FIFO_LATEST_READY
+
+(cherry picked from commit 1956b0ab9a5c36a787e10d07730f053d763dd5ed)
+Signed-off-by: Darin Morrison <darinmorrison@gmail.com>
+---
+ src/dxvk/dxvk_device_info.cpp | 4 ++++
+ src/dxvk/dxvk_device_info.h   | 2 ++
+ src/dxvk/dxvk_presenter.cpp   | 5 ++++-
+ src/dxvk/dxvk_presenter.h     | 1 +
+ 4 files changed, 11 insertions(+), 1 deletion(-)
+
+diff --git a/src/dxvk/dxvk_device_info.cpp b/src/dxvk/dxvk_device_info.cpp
+index ef5bf596..fab68a00 100644
+--- a/src/dxvk/dxvk_device_info.cpp
++++ b/src/dxvk/dxvk_device_info.cpp
+@@ -55,6 +55,7 @@ namespace dxvk {
+     HANDLE_EXT(khrPipelineLibrary);                \
+     HANDLE_EXT(khrPresentId);                      \
+     HANDLE_EXT(khrPresentId2);                     \
++    HANDLE_EXT(khrPresentModeFifoLatestReady);     \
+     HANDLE_EXT(khrPresentWait);                    \
+     HANDLE_EXT(khrPresentWait2);                   \
+     HANDLE_EXT(khrShaderFloatControls2);           \
+@@ -991,6 +992,9 @@ namespace dxvk {
+       /* Dependency for graphics pipeline library */
+       ENABLE_EXT(khrPipelineLibrary, true),
+ 
++      /* Present mode FIFO Latest Ready */
++      ENABLE_EXT_FEATURE(khrPresentModeFifoLatestReady, presentModeFifoLatestReady, false),
++
+       /* Present wait, used for frame pacing and statistics */
+       ENABLE_EXT_FEATURE(khrPresentId, presentId, false),
+       ENABLE_EXT_FEATURE(khrPresentId2, presentId2, false),
+diff --git a/src/dxvk/dxvk_device_info.h b/src/dxvk/dxvk_device_info.h
+index 3f6af060..43cfe40e 100644
+--- a/src/dxvk/dxvk_device_info.h
++++ b/src/dxvk/dxvk_device_info.h
+@@ -95,6 +95,7 @@ namespace dxvk {
+     VkPhysicalDeviceMaintenance9FeaturesKHR                   khrMaintenance9                 = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MAINTENANCE_9_FEATURES_KHR };
+     VkPhysicalDeviceMaintenance10FeaturesKHR                  khrMaintenance10                = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MAINTENANCE_10_FEATURES_KHR };
+     VkBool32                                                  khrPipelineLibrary              = VK_FALSE;
++    VkPhysicalDevicePresentModeFifoLatestReadyFeaturesKHR     khrPresentModeFifoLatestReady   = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PRESENT_MODE_FIFO_LATEST_READY_FEATURES_KHR };
+     VkPhysicalDevicePresentIdFeaturesKHR                      khrPresentId                    = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PRESENT_ID_FEATURES_KHR };
+     VkPhysicalDevicePresentId2FeaturesKHR                     khrPresentId2                   = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PRESENT_ID_2_FEATURES_KHR };
+     VkPhysicalDevicePresentWaitFeaturesKHR                    khrPresentWait                  = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PRESENT_WAIT_FEATURES_KHR };
+@@ -164,6 +165,7 @@ namespace dxvk {
+     VkExtensionProperties khrMaintenance9                   = vk::makeExtension(VK_KHR_MAINTENANCE_9_EXTENSION_NAME);
+     VkExtensionProperties khrMaintenance10                  = vk::makeExtension(VK_KHR_MAINTENANCE_10_EXTENSION_NAME);
+     VkExtensionProperties khrPipelineLibrary                = vk::makeExtension(VK_KHR_PIPELINE_LIBRARY_EXTENSION_NAME);
++    VkExtensionProperties khrPresentModeFifoLatestReady     = vk::makeExtension(VK_KHR_PRESENT_MODE_FIFO_LATEST_READY_EXTENSION_NAME);
+     VkExtensionProperties khrPresentId                      = vk::makeExtension(VK_KHR_PRESENT_ID_EXTENSION_NAME);
+     VkExtensionProperties khrPresentId2                     = vk::makeExtension(VK_KHR_PRESENT_ID_2_EXTENSION_NAME);
+     VkExtensionProperties khrPresentWait                    = vk::makeExtension(VK_KHR_PRESENT_WAIT_EXTENSION_NAME);
+diff --git a/src/dxvk/dxvk_presenter.cpp b/src/dxvk/dxvk_presenter.cpp
+index 14121c0c..9f3d4dad 100644
+--- a/src/dxvk/dxvk_presenter.cpp
++++ b/src/dxvk/dxvk_presenter.cpp
+@@ -853,6 +853,8 @@ namespace dxvk {
+ 
+     m_dynamicModes = std::move(dynamicModes);
+ 
++    m_hasPresentModeFifoLatestReady = m_device->features().khrPresentModeFifoLatestReady.presentModeFifoLatestReady;
++
+     // Set up feature support for present wait / id, and launch sync thread as necessary
+     m_hasPresentId = presentId2Caps.presentId2Supported || m_device->features().khrPresentId.presentId;
+     m_hasPresentWait = presentWait2Caps.presentWait2Supported || m_device->features().khrPresentWait.presentWait;
+@@ -1127,7 +1129,8 @@ namespace dxvk {
+     if (!syncInterval) {
+       if (tearFree != Tristate::True)
+         desired[numDesired++] = VK_PRESENT_MODE_IMMEDIATE_KHR;
+-      desired[numDesired++] = VK_PRESENT_MODE_FIFO_LATEST_READY_KHR;
++      if (m_hasPresentModeFifoLatestReady)
++        desired[numDesired++] = VK_PRESENT_MODE_FIFO_LATEST_READY_KHR;
+       desired[numDesired++] = VK_PRESENT_MODE_MAILBOX_KHR;
+     } else {
+       if (tearFree == Tristate::False)
+diff --git a/src/dxvk/dxvk_presenter.h b/src/dxvk/dxvk_presenter.h
+index 48fa2928..2b8ff5ec 100644
+--- a/src/dxvk/dxvk_presenter.h
++++ b/src/dxvk/dxvk_presenter.h
+@@ -289,6 +289,7 @@ namespace dxvk {
+     bool                        m_dirtySwapchain = false;
+     bool                        m_dirtySurface = false;
+ 
++    bool                        m_hasPresentModeFifoLatestReady = false;
+     bool                        m_hasPresentId = false;
+     bool                        m_hasPresentWait = false;
+     bool                        m_hasSwapchainMaintenance1 = false;
+-- 
+2.53.0
+

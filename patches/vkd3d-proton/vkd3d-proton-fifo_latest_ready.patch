@@ -1,0 +1,199 @@
+From 4fee3b0ce35daa94508714bb4445ea51b865b5cb Mon Sep 17 00:00:00 2001
+From: Darin Morrison <darinmorrison@gmail.com>
+Date: Thu, 12 Mar 2026 10:37:48 -0600
+Subject: [PATCH 1/2] vkd3d: Support VK_PRESENT_MODE_FIFO_LATEST_READY_KHR.
+
+This commit allows the newer present mode
+VK_PRESENT_MODE_FIFO_LATEST_READY_KHR to be selected when finding a
+compatible unlocked present mode.
+
+The precedence for selecting an unlocked present mode now follows:
+
+1. Immediate
+2. FIFO Latest Ready
+3. Mailbox
+
+(cherry picked from commit 74fece7f865e9cf89851effc3bb56803c495c652)
+Signed-off-by: Darin Morrison <darinmorrison@gmail.com>
+---
+ libs/vkd3d/device.c        |  7 +++++++
+ libs/vkd3d/swapchain.c     | 12 ++++++++++++
+ libs/vkd3d/vkd3d_private.h |  2 ++
+ 3 files changed, 21 insertions(+)
+
+diff --git a/libs/vkd3d/device.c b/libs/vkd3d/device.c
+index e445f6e9..6d3b6baf 100644
+--- a/libs/vkd3d/device.c
++++ b/libs/vkd3d/device.c
+@@ -75,6 +75,7 @@ static const struct vkd3d_optional_extension_info optional_device_extensions[] =
+     VK_EXTENSION_DISABLE_COND(KHR_RAY_TRACING_MAINTENANCE_1, KHR_ray_tracing_maintenance1, VKD3D_CONFIG_FLAG_NO_DXR),
+     VK_EXTENSION(KHR_FRAGMENT_SHADING_RATE, KHR_fragment_shading_rate),
+     VK_EXTENSION(KHR_FRAGMENT_SHADER_BARYCENTRIC, KHR_fragment_shader_barycentric),
++    VK_EXTENSION(KHR_PRESENT_MODE_FIFO_LATEST_READY, KHR_present_mode_fifo_latest_ready),
+     VK_EXTENSION(KHR_PRESENT_ID, KHR_present_id),
+     VK_EXTENSION(KHR_PRESENT_WAIT, KHR_present_wait),
+     VK_EXTENSION(KHR_MAINTENANCE_5, KHR_maintenance5),
+@@ -2002,6 +2003,12 @@ static void vkd3d_physical_device_info_init(struct vkd3d_physical_device_info *i
+         vk_prepend_struct(&info->features2, &info->present_id_features);
+     }
+ 
++    if (vulkan_info->KHR_present_mode_fifo_latest_ready)
++    {
++        info->present_mode_fifo_latest_ready_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PRESENT_MODE_FIFO_LATEST_READY_FEATURES_KHR;
++        vk_prepend_struct(&info->features2, &info->present_mode_fifo_latest_ready_features);
++    }
++
+     if (vulkan_info->KHR_present_wait)
+     {
+         info->present_wait_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PRESENT_WAIT_FEATURES_KHR;
+diff --git a/libs/vkd3d/swapchain.c b/libs/vkd3d/swapchain.c
+index aad9d7d4..419d7578 100644
+--- a/libs/vkd3d/swapchain.c
++++ b/libs/vkd3d/swapchain.c
+@@ -1684,6 +1684,18 @@ static bool dxgi_vk_swap_chain_find_compatible_unlocked_present_mode(
+         }
+     }
+ 
++    if (chain->queue->device->device_info.present_mode_fifo_latest_ready_features.presentModeFifoLatestReady)
++    {
++        for (i = 0; !has_compatible && i < compat.presentModeCount; i++)
++        {
++            if (compat.pPresentModes[i] == VK_PRESENT_MODE_FIFO_LATEST_READY_KHR)
++            {
++                *vk_present_mode = VK_PRESENT_MODE_FIFO_LATEST_READY_KHR;
++                has_compatible = true;
++            }
++        }
++    }
++
+     for (i = 0; !has_compatible && i < compat.presentModeCount; i++)
+     {
+         if (compat.pPresentModes[i] == VK_PRESENT_MODE_MAILBOX_KHR)
+diff --git a/libs/vkd3d/vkd3d_private.h b/libs/vkd3d/vkd3d_private.h
+index 535bcd40..d8960dd8 100644
+--- a/libs/vkd3d/vkd3d_private.h
++++ b/libs/vkd3d/vkd3d_private.h
+@@ -148,6 +148,7 @@ struct vkd3d_vulkan_info
+     bool KHR_calibrated_timestamps;
+     bool KHR_cooperative_matrix;
+     bool KHR_unified_image_layouts;
++    bool KHR_present_mode_fifo_latest_ready;
+     /* EXT device extensions */
+     bool EXT_conditional_rendering;
+     bool EXT_conservative_rasterization;
+@@ -5031,6 +5032,7 @@ struct vkd3d_physical_device_info
+     VkPhysicalDeviceAntiLagFeaturesAMD anti_lag_amd;
+     VkPhysicalDeviceUnifiedImageLayoutsFeaturesKHR unified_image_layouts_features;
+     VkPhysicalDeviceShaderMixedFloatDotProductFeaturesVALVE shader_mixed_float_dot_product_features;
++    VkPhysicalDevicePresentModeFifoLatestReadyFeaturesKHR present_mode_fifo_latest_ready_features;
+ 
+     VkPhysicalDeviceFeatures2 features2;
+ 
+-- 
+2.53.0
+
+
+From cce8ebf7d20dcce1baaa7b3e60012be1e7afb258 Mon Sep 17 00:00:00 2001
+From: Darin Morrison <darinmorrison@gmail.com>
+Date: Thu, 12 Mar 2026 10:51:44 -0600
+Subject: [PATCH 2/2] vkd3d: Add "tear_free" VKD3D_CONFIG option.
+
+The "tear_free" option changes the behavior when finding a compatible
+unlocked present mode to prefer tear-free modes.
+
+The precedence for seleccting an unlocked present mode now follows:
+
+1. FIFO Latest Ready
+2. Mailbox
+3. Immediate
+
+This is intended to be similar to the "dxvk.tearFree" option for dxvk.
+
+(cherry picked from commit 099a83ad8a436fa664881010ebca054b88c148a5)
+Signed-off-by: Darin Morrison <darinmorrison@gmail.com>
+---
+ README.md              | 1 +
+ include/vkd3d.h        | 1 +
+ libs/vkd3d/device.c    | 1 +
+ libs/vkd3d/swapchain.c | 8 ++++++--
+ 4 files changed, 9 insertions(+), 2 deletions(-)
+
+diff --git a/README.md b/README.md
+index faa56845..32277e41 100644
+--- a/README.md
++++ b/README.md
+@@ -156,6 +156,7 @@ commas or semicolons.
+       so it should not be a real issue even on lower VRAM cards.
+     - `force_host_cached` - Forces all host visible allocations to be CACHED, which greatly accelerates captures.
+     - `no_invariant_position` - Avoids workarounds for invariant position. The workaround is enabled by default.
++    - `tear_free` - Prefer tear-free present modes when Vsync is disabled. Selects FIFO Latest Ready or Mailbox before Immediate.
+  - `VKD3D_DEBUG` - controls the debug level for log messages produced by
+    vkd3d-proton. Accepts the following values: none, err, info, fixme, warn, trace.
+  - `VKD3D_SHADER_DEBUG` - controls the debug level for log messages produced by
+diff --git a/include/vkd3d.h b/include/vkd3d.h
+index c467b5d2..98726d85 100644
+--- a/include/vkd3d.h
++++ b/include/vkd3d.h
+@@ -120,6 +120,7 @@ extern "C" {
+ #define VKD3D_CONFIG_FLAG_DEFER_RESOURCE_DESTRUCTION (1ull << 60)
+ #define VKD3D_CONFIG_FLAG_PREFER_THIN_UAV_TILING (1ull << 61)
+ #define VKD3D_CONFIG_FLAG_EXTENDED_DEBUG_UTILS (1ull << 62)
++#define VKD3D_CONFIG_FLAG_TEAR_FREE (1ull << 63)
+ 
+ struct vkd3d_instance;
+ 
+diff --git a/libs/vkd3d/device.c b/libs/vkd3d/device.c
+index 6d3b6baf..7fe355c4 100644
+--- a/libs/vkd3d/device.c
++++ b/libs/vkd3d/device.c
+@@ -1198,6 +1198,7 @@ static const struct vkd3d_debug_option vkd3d_config_options[] =
+     {"damage_not_zeroed_allocations", VKD3D_CONFIG_FLAG_DAMAGE_NOT_ZEROED_ALLOCATIONS},
+     {"defer_resource_destruction", VKD3D_CONFIG_FLAG_DEFER_RESOURCE_DESTRUCTION},
+     {"prefer_thin_uav_tiling", VKD3D_CONFIG_FLAG_PREFER_THIN_UAV_TILING},
++    {"tear_free", VKD3D_CONFIG_FLAG_TEAR_FREE},
+ };
+ 
+ static void vkd3d_config_flags_init_once(void)
+diff --git a/libs/vkd3d/swapchain.c b/libs/vkd3d/swapchain.c
+index 419d7578..cffbe1be 100644
+--- a/libs/vkd3d/swapchain.c
++++ b/libs/vkd3d/swapchain.c
+@@ -1650,6 +1650,8 @@ static bool dxgi_vk_swap_chain_find_compatible_unlocked_present_mode(
+     VkPresentModeKHR present_modes[32];
+     VkSurfaceCapabilities2KHR caps2;
+     bool has_compatible = false;
++    bool has_compatible_tear_free = false;
++    bool prefer_tear_free = vkd3d_config_flags & VKD3D_CONFIG_FLAG_TEAR_FREE;
+     uint32_t i;
+ 
+     /* swapchain maintenance implies surface maintenance */
+@@ -1686,22 +1688,24 @@ static bool dxgi_vk_swap_chain_find_compatible_unlocked_present_mode(
+ 
+     if (chain->queue->device->device_info.present_mode_fifo_latest_ready_features.presentModeFifoLatestReady)
+     {
+-        for (i = 0; !has_compatible && i < compat.presentModeCount; i++)
++        for (i = 0; (!has_compatible || (prefer_tear_free && !has_compatible_tear_free)) && i < compat.presentModeCount; i++)
+         {
+             if (compat.pPresentModes[i] == VK_PRESENT_MODE_FIFO_LATEST_READY_KHR)
+             {
+                 *vk_present_mode = VK_PRESENT_MODE_FIFO_LATEST_READY_KHR;
+                 has_compatible = true;
++                has_compatible_tear_free = true;
+             }
+         }
+     }
+ 
+-    for (i = 0; !has_compatible && i < compat.presentModeCount; i++)
++    for (i = 0; (!has_compatible || (prefer_tear_free && !has_compatible_tear_free)) && i < compat.presentModeCount; i++)
+     {
+         if (compat.pPresentModes[i] == VK_PRESENT_MODE_MAILBOX_KHR)
+         {
+             *vk_present_mode = VK_PRESENT_MODE_MAILBOX_KHR;
+             has_compatible = true;
++            has_compatible_tear_free = true;
+         }
+     }
+ 
+-- 
+2.53.0
+
