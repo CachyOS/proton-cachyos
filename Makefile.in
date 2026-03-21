@@ -1473,6 +1473,10 @@ $(eval $(call rules-source,protonfixes,$(SRCDIR)/protonfixes))
 $(eval $(call rules-common,protonfixes,x86_64,unix))
 $(eval $(call rules-common,protonfixes,aarch64,unix))
 
+$(OBJ)/.protonfixes-post-source: patches-source
+	$(foreach p,$(shell find $(PATCHES_SRC)/protonfixes/ -name "*.patch" | sort),patch -d $(PROTONFIXES_SRC) -Np1 -i $(p) &&) true
+	touch $@
+
 $(OBJ)/.protonfixes-x86_64-build:
 	cd $(PROTONFIXES_SRC) && \
 	env $(PROTONFIXES_x86_64_ENV) BUILD=$(PROTONFIXES_x86_64_OBJ) TARGET_ARCH=$(TARGET_ARCH) make
