@@ -1,0 +1,2325 @@
+From 456fbb357a23831891c801edc9c1a66315e7a915 Mon Sep 17 00:00:00 2001
+From: Darin Morrison <darinmorrison@gmail.com>
+Date: Thu, 12 Mar 2026 10:37:48 -0600
+Subject: [PATCH 1/9] vkd3d: Enable VK_PRESENT_MODE_FIFO_LATEST_READY_KHR
+ feature.
+
+(cherry picked from commit 91dc0a22f690a305d74d36e65a7e286846f4f053)
+Signed-off-by: Darin Morrison <darinmorrison@gmail.com>
+---
+ libs/vkd3d/device.c        | 7 +++++++
+ libs/vkd3d/vkd3d_private.h | 2 ++
+ 2 files changed, 9 insertions(+)
+
+diff --git a/libs/vkd3d/device.c b/libs/vkd3d/device.c
+index 4f805ab0..f3047b62 100644
+--- a/libs/vkd3d/device.c
++++ b/libs/vkd3d/device.c
+@@ -75,6 +75,7 @@ static const struct vkd3d_optional_extension_info optional_device_extensions[] =
+     VK_EXTENSION_DISABLE_COND(KHR_RAY_TRACING_MAINTENANCE_1, KHR_ray_tracing_maintenance1, VKD3D_CONFIG_FLAG_NO_DXR),
+     VK_EXTENSION(KHR_FRAGMENT_SHADING_RATE, KHR_fragment_shading_rate),
+     VK_EXTENSION(KHR_FRAGMENT_SHADER_BARYCENTRIC, KHR_fragment_shader_barycentric),
++    VK_EXTENSION(KHR_PRESENT_MODE_FIFO_LATEST_READY, KHR_present_mode_fifo_latest_ready),
+     VK_EXTENSION(KHR_PRESENT_ID, KHR_present_id),
+     VK_EXTENSION(KHR_PRESENT_WAIT, KHR_present_wait),
+     VK_EXTENSION(KHR_MAINTENANCE_5, KHR_maintenance5),
+@@ -2195,6 +2196,12 @@ static void vkd3d_physical_device_info_init(struct vkd3d_physical_device_info *i
+         vk_prepend_struct(&info->features2, &info->present_id_features);
+     }
+ 
++    if (vulkan_info->KHR_present_mode_fifo_latest_ready)
++    {
++        info->present_mode_fifo_latest_ready_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PRESENT_MODE_FIFO_LATEST_READY_FEATURES_KHR;
++        vk_prepend_struct(&info->features2, &info->present_mode_fifo_latest_ready_features);
++    }
++
+     if (vulkan_info->KHR_present_wait)
+     {
+         info->present_wait_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PRESENT_WAIT_FEATURES_KHR;
+diff --git a/libs/vkd3d/vkd3d_private.h b/libs/vkd3d/vkd3d_private.h
+index e77f6f61..1186e279 100644
+--- a/libs/vkd3d/vkd3d_private.h
++++ b/libs/vkd3d/vkd3d_private.h
+@@ -150,6 +150,7 @@ struct vkd3d_vulkan_info
+     bool KHR_calibrated_timestamps;
+     bool KHR_cooperative_matrix;
+     bool KHR_unified_image_layouts;
++    bool KHR_present_mode_fifo_latest_ready;
+     /* EXT device extensions */
+     bool EXT_conditional_rendering;
+     bool EXT_conservative_rasterization;
+@@ -5063,6 +5064,7 @@ struct vkd3d_physical_device_info
+     VkPhysicalDeviceAntiLagFeaturesAMD anti_lag_amd;
+     VkPhysicalDeviceUnifiedImageLayoutsFeaturesKHR unified_image_layouts_features;
+     VkPhysicalDeviceShaderMixedFloatDotProductFeaturesVALVE shader_mixed_float_dot_product_features;
++    VkPhysicalDevicePresentModeFifoLatestReadyFeaturesKHR present_mode_fifo_latest_ready_features;
+ 
+     VkPhysicalDeviceFeatures2 features2;
+ 
+-- 
+2.53.0
+
+
+From ab471f06e22e1f688add3595c31f1bf549cee55f Mon Sep 17 00:00:00 2001
+From: Darin Morrison <darinmorrison@gmail.com>
+Date: Fri, 13 Mar 2026 13:26:28 -0600
+Subject: [PATCH 2/9] vkd3d: Implement VKD3D_SWAPCHAIN_PRESENT_MODE
+
+(cherry picked from commit 5bd9027e70fe966c02839eeae545aa5f80d9e08a)
+Signed-off-by: Darin Morrison <darinmorrison@gmail.com>
+---
+ libs/vkd3d/swapchain.c | 191 ++++++++++++++++++++++++++---------------
+ 1 file changed, 124 insertions(+), 67 deletions(-)
+
+diff --git a/libs/vkd3d/swapchain.c b/libs/vkd3d/swapchain.c
+index aad9d7d4..0ab8a3f3 100644
+--- a/libs/vkd3d/swapchain.c
++++ b/libs/vkd3d/swapchain.c
+@@ -24,6 +24,46 @@
+ #include "vkd3d_private.h"
+ #include "vkd3d_timestamp_profiler.h"
+ 
++static inline bool vkd3d_swapchain_present_mode_parse(const char *string, VkPresentModeKHR *present_mode)
++{
++    struct present_mode_entry
++    {
++        const char *name;
++        VkPresentModeKHR value;
++    };
++
++    static const struct present_mode_entry present_mode_table[] =
++    {
++        {"IMMEDIATE", VK_PRESENT_MODE_IMMEDIATE_KHR},
++        {"MAILBOX", VK_PRESENT_MODE_MAILBOX_KHR},
++        {"FIFO", VK_PRESENT_MODE_FIFO_KHR},
++        {"FIFO_RELAXED", VK_PRESENT_MODE_FIFO_RELAXED_KHR},
++        {"FIFO_LATEST_READY", VK_PRESENT_MODE_FIFO_LATEST_READY_KHR},
++    };
++
++    for (size_t i = 0; i < ARRAY_SIZE(present_mode_table); i++)
++    {
++        if (strcmp(string, present_mode_table[i].name) == 0)
++        {
++            *present_mode = present_mode_table[i].value;
++            return true;
++        }
++    }
++
++    return false;
++}
++
++static inline bool present_mode_pacing_should_wait(VkPresentModeKHR present_mode)
++{
++    /* FIFO_LATEST_READY is intentionally excluded. Unlike FIFO and FIFO_RELAXED,
++     * it does not block on Vsync boundaries and present-wait would not provide
++     * meaningful backpressure. When VK_EXT_present_timing becomes available,
++     * VkPresentTimingInfoEXT.targetTime would be the appropriate pacing mechanism.
++     */
++    return present_mode == VK_PRESENT_MODE_FIFO_KHR ||
++           present_mode == VK_PRESENT_MODE_FIFO_RELAXED_KHR;
++}
++
+ static inline struct dxgi_vk_swap_chain_factory *impl_from_IDXGIVkSwapChainFactory(IDXGIVkSwapChainFactory *iface)
+ {
+     return CONTAINING_RECORD(iface, struct dxgi_vk_swap_chain_factory, IDXGIVkSwapChainFactory_iface);
+@@ -182,8 +222,8 @@ struct dxgi_vk_swap_chain
+         bool is_surface_lost;
+ 
+         VkPresentModeKHR unlocked_present_mode;
++        VkPresentModeKHR selected_present_mode;
+         bool compatible_unlocked_present_mode;
+-        bool present_mode_forces_fifo;
+ 
+         /* Info about the current low latency state of the swapchain */
+         uint32_t low_latency_present_mode_count;
+@@ -1807,11 +1847,12 @@ static void dxgi_vk_swap_chain_recreate_swapchain_in_present_task(struct dxgi_vk
+     VkDevice vk_device = chain->queue->device->vk_device;
+     VkCommandPoolCreateInfo command_pool_create_info;
+     VkSwapchainCreateInfoKHR swapchain_create_info;
++    bool has_present_mode_override = false;
+     VkPresentModeKHR present_mode_group[2];
++    char present_mode_env[VKD3D_PATH_MAX];
+     VkSurfaceCapabilitiesKHR surface_caps;
+     VkSurfaceFormatKHR surface_format;
+     VkImageViewCreateInfo view_info;
+-    VkPresentModeKHR present_mode;
+     uint32_t override_image_count;
+     bool new_occlusion_state;
+     char count_env[16];
+@@ -1859,43 +1900,62 @@ static void dxgi_vk_swap_chain_recreate_swapchain_in_present_task(struct dxgi_vk
+     if (!dxgi_vk_swap_chain_select_format(chain, &surface_format))
+         return;
+ 
+-    chain->present.compatible_unlocked_present_mode =
+-            dxgi_vk_swap_chain_find_compatible_unlocked_present_mode(chain,
+-                    &chain->present.unlocked_present_mode,
+-                    &surface_caps.minImageCount);
+-
+     memset(&swapchain_create_info, 0, sizeof(swapchain_create_info));
+     swapchain_create_info.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
+ 
+-    if (chain->present.compatible_unlocked_present_mode)
++    if (vkd3d_get_env_var("VKD3D_SWAPCHAIN_PRESENT_MODE", present_mode_env, sizeof(present_mode_env)))
+     {
+-        /* Just start out in FIFO, we will change it at-will later. */
+-        present_mode = VK_PRESENT_MODE_FIFO_KHR;
+-
+-        present_mode_group[0] = present_mode;
+-        present_mode_group[1] = chain->present.unlocked_present_mode;
+-        present_modes_info.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_PRESENT_MODES_CREATE_INFO_EXT;
+-        present_modes_info.pNext = NULL;
+-        present_modes_info.pPresentModes = present_mode_group;
+-        present_modes_info.presentModeCount = ARRAY_SIZE(present_mode_group);
+-        vk_prepend_struct(&swapchain_create_info, &present_modes_info);
+-        chain->present.present_mode_forces_fifo = false;
+-    }
+-    else
+-    {
+-        present_mode = chain->request.swap_interval > 0 ? VK_PRESENT_MODE_FIFO_KHR : VK_PRESENT_MODE_IMMEDIATE_KHR;
+-
+-        /* Prefer IMMEDIATE over MAILBOX. FIFO is guaranteed to be supported. */
+-        if (present_mode == VK_PRESENT_MODE_IMMEDIATE_KHR &&
+-                !dxgi_vk_swap_chain_check_present_mode_support(chain, present_mode))
++        VkPresentModeKHR candidate_present_mode;
++        if (vkd3d_swapchain_present_mode_parse(present_mode_env, &candidate_present_mode))
+         {
+-            if (dxgi_vk_swap_chain_check_present_mode_support(chain, VK_PRESENT_MODE_MAILBOX_KHR))
+-                present_mode = VK_PRESENT_MODE_MAILBOX_KHR;
++            if (dxgi_vk_swap_chain_check_present_mode_support(chain, candidate_present_mode))
++            {
++                chain->present.selected_present_mode = candidate_present_mode;
++                chain->present.compatible_unlocked_present_mode = false;
++                has_present_mode_override = true;
++                INFO("Overriding swapchain present mode to %s.\n", present_mode_env);
++            }
+             else
+-                present_mode = VK_PRESENT_MODE_FIFO_KHR;
++                WARN("Ignoring unsupported mode for VKD3D_SWAPCHAIN_PRESENT_MODE=%s.\n", present_mode_env);
+         }
++        else
++            WARN("Ignoring unrecognized value for VKD3D_SWAPCHAIN_PRESENT_MODE=%s.\n", present_mode_env);
++    }
+ 
+-        chain->present.present_mode_forces_fifo = present_mode == VK_PRESENT_MODE_FIFO_KHR;
++    if (!has_present_mode_override)
++    {
++        chain->present.compatible_unlocked_present_mode =
++                dxgi_vk_swap_chain_find_compatible_unlocked_present_mode(chain,
++                        &chain->present.unlocked_present_mode,
++                        &surface_caps.minImageCount);
++
++        if (chain->present.compatible_unlocked_present_mode)
++        {
++            /* Just start out in FIFO, we will change it at-will later. */
++            chain->present.selected_present_mode = VK_PRESENT_MODE_FIFO_KHR;
++
++            present_mode_group[0] = chain->present.selected_present_mode;
++            present_mode_group[1] = chain->present.unlocked_present_mode;
++            present_modes_info.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_PRESENT_MODES_CREATE_INFO_EXT;
++            present_modes_info.pNext = NULL;
++            present_modes_info.pPresentModes = present_mode_group;
++            present_modes_info.presentModeCount = ARRAY_SIZE(present_mode_group);
++            vk_prepend_struct(&swapchain_create_info, &present_modes_info);
++        }
++        else
++        {
++            chain->present.selected_present_mode = chain->request.swap_interval > 0 ? VK_PRESENT_MODE_FIFO_KHR : VK_PRESENT_MODE_IMMEDIATE_KHR;
++
++            /* Prefer IMMEDIATE over MAILBOX. FIFO is guaranteed to be supported. */
++            if (chain->present.selected_present_mode == VK_PRESENT_MODE_IMMEDIATE_KHR &&
++                    !dxgi_vk_swap_chain_check_present_mode_support(chain, chain->present.selected_present_mode))
++            {
++                if (dxgi_vk_swap_chain_check_present_mode_support(chain, VK_PRESENT_MODE_MAILBOX_KHR))
++                    chain->present.selected_present_mode = VK_PRESENT_MODE_MAILBOX_KHR;
++                else
++                    chain->present.selected_present_mode = VK_PRESENT_MODE_FIFO_KHR;
++            }
++        }
+     }
+ 
+     swapchain_create_info.surface = chain->vk_surface;
+@@ -1906,7 +1966,7 @@ static void dxgi_vk_swap_chain_recreate_swapchain_in_present_task(struct dxgi_vk
+     swapchain_create_info.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+     swapchain_create_info.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+     swapchain_create_info.preTransform = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
+-    swapchain_create_info.presentMode = present_mode;
++    swapchain_create_info.presentMode = chain->present.selected_present_mode;
+     swapchain_create_info.clipped = VK_TRUE;
+ 
+     /* We don't block directly on Present(), so there's no reason to use more than 3 images if even application requests more.
+@@ -2423,12 +2483,11 @@ static void dxgi_vk_swap_chain_present_iteration(struct dxgi_vk_swap_chain *chai
+     const struct vkd3d_vk_device_procs *vk_procs = &chain->queue->device->vk_procs;
+     VkSwapchainPresentFenceInfoEXT present_fence_info;
+     VkSwapchainPresentModeInfoEXT present_mode_info;
+-    VkPresentModeKHR present_mode;
+     VkPresentInfoKHR present_info;
+     uint64_t minimum_present_id;
+     VkPresentIdKHR present_id;
+     uint32_t swapchain_index;
+-    bool swapchain_is_fifo;
++    bool pacing_should_wait;
+     bool use_present_id;
+     VkResult vk_result;
+     VkQueue vk_queue;
+@@ -2483,16 +2542,40 @@ static void dxgi_vk_swap_chain_present_iteration(struct dxgi_vk_swap_chain *chai
+     present_info.pWaitSemaphores = &chain->present.vk_release_semaphores[swapchain_index];
+     present_info.pResults = &vk_result;
+ 
+-    /* Even if application requests IMMEDIATE mode, the WSI implementation may not support it.
+-     * In this case, we should still opt for using frame latency object to avoid catastrophic latency. */
+-    swapchain_is_fifo = chain->request.swap_interval > 0 || chain->present.present_mode_forces_fifo;
++    if (chain->swapchain_maintenance1)
++    {
++        chain->present.swapchain_fence_index = (chain->present.swapchain_fence_index + 1) %
++                ARRAY_SIZE(chain->present.vk_swapchain_fences);
+ 
+-    /* Only bother with present wait path for FIFO swapchains.
+-     * Non-FIFO swapchains will pump their frame latency handles through the fallback path of blit command being done.
++        present_fence_info.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_PRESENT_FENCE_INFO_EXT;
++        present_fence_info.swapchainCount = 1;
++        present_fence_info.pFences = &chain->present.vk_swapchain_fences[chain->present.swapchain_fence_index];
++        present_fence_info.pNext = NULL;
++        vk_prepend_struct(&present_info, &present_fence_info);
++
++        dxgi_vk_swap_chain_ensure_unsignaled_swapchain_fence(chain, chain->present.swapchain_fence_index);
++        chain->present.vk_swapchain_fences_signalled[chain->present.swapchain_fence_index] = true;
++
++        if (chain->present.compatible_unlocked_present_mode)
++        {
++            present_mode_info.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_PRESENT_MODE_INFO_EXT;
++            present_mode_info.pNext = NULL;
++            present_mode_info.swapchainCount = 1;
++            present_mode_info.pPresentModes = &chain->present.selected_present_mode;
++            chain->present.selected_present_mode = chain->request.swap_interval > 0 ?
++                    VK_PRESENT_MODE_FIFO_KHR : chain->present.unlocked_present_mode;
++            vk_prepend_struct(&present_info, &present_mode_info);
++        }
++    }
++
++    pacing_should_wait = present_mode_pacing_should_wait(chain->present.selected_present_mode) ||
++        chain->present.low_latency_state.mode;
++
++    /* Only bother with present-wait path for capped swapchains like FIFO and FIFO Relaxed.
++     * Uncapped swapchains will pump their frame latency handles through the fallback path of blit command being done.
+      * Especially on Xwayland, the present ID is updated when images actually hit on-screen due to MAILBOX behavior.
+      * This would unnecessarily stall our progress. */
+-    if (chain->wait_thread.supports_present_wait && !chain->present.present_id_valid &&
+-        (swapchain_is_fifo || chain->present.low_latency_state.mode))
++    if (chain->wait_thread.supports_present_wait && !chain->present.present_id_valid && pacing_should_wait)
+     {
+         minimum_present_id = chain->present.present_id + 1;
+         if (chain->present.low_latency_state.mode)
+@@ -2529,32 +2612,6 @@ static void dxgi_vk_swap_chain_present_iteration(struct dxgi_vk_swap_chain *chai
+     else
+         use_present_id = false;
+ 
+-    if (chain->swapchain_maintenance1)
+-    {
+-        chain->present.swapchain_fence_index = (chain->present.swapchain_fence_index + 1) %
+-                ARRAY_SIZE(chain->present.vk_swapchain_fences);
+-
+-        present_fence_info.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_PRESENT_FENCE_INFO_EXT;
+-        present_fence_info.swapchainCount = 1;
+-        present_fence_info.pFences = &chain->present.vk_swapchain_fences[chain->present.swapchain_fence_index];
+-        present_fence_info.pNext = NULL;
+-        vk_prepend_struct(&present_info, &present_fence_info);
+-
+-        dxgi_vk_swap_chain_ensure_unsignaled_swapchain_fence(chain, chain->present.swapchain_fence_index);
+-        chain->present.vk_swapchain_fences_signalled[chain->present.swapchain_fence_index] = true;
+-
+-        if (chain->present.compatible_unlocked_present_mode)
+-        {
+-            present_mode_info.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_PRESENT_MODE_INFO_EXT;
+-            present_mode_info.pNext = NULL;
+-            present_mode_info.swapchainCount = 1;
+-            present_mode_info.pPresentModes = &present_mode;
+-            present_mode = chain->request.swap_interval > 0 ?
+-                    VK_PRESENT_MODE_FIFO_KHR : chain->present.unlocked_present_mode;
+-            vk_prepend_struct(&present_info, &present_mode_info);
+-        }
+-    }
+-
+     vk_queue = vkd3d_queue_acquire(chain->queue->vkd3d_queue);
+     VKD3D_REGION_BEGIN(queue_present);
+     vr = VK_CALL(vkQueuePresentKHR(vk_queue, &present_info));
+-- 
+2.53.0
+
+
+From 92331a9e4af2a36c1b89a0b99c6640d910e90deb Mon Sep 17 00:00:00 2001
+From: Darin Morrison <darinmorrison@gmail.com>
+Date: Sat, 14 Mar 2026 11:49:47 -0600
+Subject: [PATCH 3/9] vkd3d: Document VKD3D_SWAPCHAIN_PRESENT_MODE
+
+(cherry picked from commit 041b71080e5fe6640c791371adef4a9126281b54)
+Signed-off-by: Darin Morrison <darinmorrison@gmail.com>
+---
+ README.md | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/README.md b/README.md
+index 0894b109..917692fd 100644
+--- a/README.md
++++ b/README.md
+@@ -204,6 +204,9 @@ commas or semicolons.
+  - `VKD3D_TEST_BUG` - set to 0 to disable bug_if() conditions in tests.
+  - `VKD3D_PROFILE_PATH` - If profiling is enabled in the build, a profiling block is
+    emitted to `${VKD3D_PROFILE_PATH}.${pid}`.
++ - `VKD3D_SWAPCHAIN_PRESENT_MODE` - accepts a Vulkan present mode name. Forces the
++   use of the specified present mode if supported. Currently accepts
++   `IMMEDIATE`, `MAILBOX`, `FIFO`, `FIFO_RELAXED`, `FIFO_LATEST_READY`.
+ 
+ ### Frame rate limit
+ The `VKD3D_FRAME_RATE` environment variable can be used to limit the frame rate. A value of `0` uncaps the frame rate, while any positive value will limit rendering to the given number of frames per second.
+-- 
+2.53.0
+
+
+From c1e6a6eae565f95430e13568bb9077add3284cb0 Mon Sep 17 00:00:00 2001
+From: Hans-Kristian Arntzen <post@arntzen-software.no>
+Date: Fri, 12 Dec 2025 14:53:33 +0100
+Subject: [PATCH 4/9] gears: Try to check reported presentation stats.
+
+Also demonstrate present interval > 1.
+
+Signed-off-by: Hans-Kristian Arntzen <post@arntzen-software.no>
+(cherry picked from commit 2cbf01eb9e908110b85708202aa4d85ac3ffd659)
+Signed-off-by: Darin Morrison <darinmorrison@gmail.com>
+---
+ demos/demo_win32.h | 14 +++++++++++++-
+ demos/demo_xcb.h   | 16 +++++++++++++++-
+ 2 files changed, 28 insertions(+), 2 deletions(-)
+
+diff --git a/demos/demo_win32.h b/demos/demo_win32.h
+index fb641971..9335cb2b 100644
+--- a/demos/demo_win32.h
++++ b/demos/demo_win32.h
+@@ -295,10 +295,22 @@ static inline ID3D12Resource *demo_swapchain_get_back_buffer(struct demo_swapcha
+     return buffer;
+ }
+ 
++#define debug_printf(...) do { char buf[1024]; snprintf(buf, sizeof(buf), __VA_ARGS__); OutputDebugStringA(buf); } while(0)
++
+ static inline void demo_swapchain_present(struct demo_swapchain *swapchain)
+ {
+-    IDXGISwapChain3_Present(swapchain->swapchain, 1, 0);
++    DXGI_FRAME_STATISTICS stats;
++    IDXGISwapChain3_Present(swapchain->swapchain, 2, 0);
+     WaitForSingleObject(swapchain->handle, INFINITE);
++
++    if (SUCCEEDED(IDXGISwapChain3_GetFrameStatistics(swapchain->swapchain, &stats)))
++    {
++        LARGE_INTEGER freq;
++        QueryPerformanceFrequency(&freq);
++        debug_printf("gears: present %u, QPC %.3f s.\n", stats.SyncRefreshCount, (double)stats.SyncQPCTime.QuadPart / (double)freq.QuadPart);
++    }
++	else
++		debug_printf("gears: Failed to get frame stats.\n");
+ }
+ 
+ static inline void demo_swapchain_destroy(struct demo_swapchain *swapchain)
+diff --git a/demos/demo_xcb.h b/demos/demo_xcb.h
+index 5e414985..f296721d 100644
+--- a/demos/demo_xcb.h
++++ b/demos/demo_xcb.h
+@@ -474,8 +474,22 @@ static inline ID3D12Resource *demo_swapchain_get_back_buffer(struct demo_swapcha
+ 
+ static inline void demo_swapchain_present(struct demo_swapchain *swapchain)
+ {
+-    IDXGIVkSwapChain_Present(swapchain->swapchain, 1, 0, NULL);
++    DXGI_VK_FRAME_STATISTICS stats;
++    IDXGIVkSwapChain2 *swapchain2;
++    IDXGIVkSwapChain_Present(swapchain->swapchain, 2, 0, NULL);
+     acquire_eventfd(swapchain->fd);
++
++    if (SUCCEEDED(IDXGIVkSwapChain_QueryInterface(swapchain->swapchain, &IID_IDXGIVkSwapChain2, (void **)&swapchain2)))
++    {
++#if 0
++        /* For testing */
++        IDXGIVkSwapChain2_SetTargetFrameRate(swapchain2, 50.0f);
++#endif
++
++        IDXGIVkSwapChain2_GetFrameStatistics(swapchain2, &stats);
++        fprintf(stderr, "gears: present %"PRIu64", QPC %.3f * 10^9.\n", stats.PresentCount, (double)stats.PresentQPCTime * 1e-9);
++        IDXGIVkSwapChain2_Release(swapchain2);
++    }
+ }
+ 
+ static inline HANDLE demo_create_event(void)
+-- 
+2.53.0
+
+
+From da8507229bf2438ffb87447b590e21b23d5cf76d Mon Sep 17 00:00:00 2001
+From: Hans-Kristian Arntzen <post@arntzen-software.no>
+Date: Fri, 12 Dec 2025 15:44:44 +0100
+Subject: [PATCH 5/9] vkd3d: Don't reset frame timing accumulator for redundant
+ arguments.
+
+Signed-off-by: Hans-Kristian Arntzen <post@arntzen-software.no>
+(cherry picked from commit ddc01030676ea5feaa538b7b00faa1b3342792a0)
+Signed-off-by: Darin Morrison <darinmorrison@gmail.com>
+---
+ libs/vkd3d/swapchain.c | 22 +++++++++++++++++-----
+ 1 file changed, 17 insertions(+), 5 deletions(-)
+
+diff --git a/libs/vkd3d/swapchain.c b/libs/vkd3d/swapchain.c
+index 0ab8a3f3..0a3efd35 100644
+--- a/libs/vkd3d/swapchain.c
++++ b/libs/vkd3d/swapchain.c
+@@ -1268,17 +1268,29 @@ static void STDMETHODCALLTYPE dxgi_vk_swap_chain_SetTargetFrameRate(IDXGIVkSwapC
+ 
+     if (frame_rate != 0.0)
+     {
++        uint64_t target_interval_ns;
++        bool reset_stats;
++        bool enable;
++
+         /* Target frame rate may be negative, in which case we should only engage the limiter
+          * if the measured frame rate is higher than expected, e.g. due to the actual display
+          * refresh rate not matching the display mode used for the swap chain. */
+         INFO("Set target frame rate to %.1lf FPS.\n", fabs(frame_rate));
+ 
+-        chain->frame_rate_limit.enable = frame_rate > 0.0;
+-        chain->frame_rate_limit.target_interval_ns = (uint64_t)(1.0e9 / fabs(frame_rate));
+-        chain->frame_rate_limit.next_deadline_ns = 0;
++        target_interval_ns = (uint64_t)(1.0e9 / fabs(frame_rate));
++        enable = frame_rate > 0.0;
++        reset_stats = chain->frame_rate_limit.enable != enable ||
++                chain->frame_rate_limit.target_interval_ns != target_interval_ns;
+ 
+-        chain->frame_rate_limit.heuristic_frame_time_ns = 0;
+-        chain->frame_rate_limit.heuristic_frame_count = 0;
++        chain->frame_rate_limit.enable = enable;
++
++        if (reset_stats)
++        {
++            chain->frame_rate_limit.target_interval_ns = target_interval_ns;
++            chain->frame_rate_limit.next_deadline_ns = 0;
++            chain->frame_rate_limit.heuristic_frame_time_ns = 0;
++            chain->frame_rate_limit.heuristic_frame_count = 0;
++        }
+     }
+     else
+     {
+-- 
+2.53.0
+
+
+From 47749399d720138b7f17cf6ea573675efb64e621 Mon Sep 17 00:00:00 2001
+From: Hans-Kristian Arntzen <post@arntzen-software.no>
+Date: Thu, 11 Dec 2025 12:52:28 +0100
+Subject: [PATCH 6/9] vkd3d: Implement present timing and update advanced WSI
+ extensions to their newest iteration.
+
+Use present_id2/wait2 when available and KHR_swapchain_maintenance1.
+Get rid of legacy path where we block on CPU progress in ::Present().
+It's completely irrelevant these days since all relevant
+platforms support KHR_present_wait(2) just fine.
+
+Signed-off-by: Hans-Kristian Arntzen <post@arntzen-software.no>
+(cherry picked from commit f30e419bb8f833abf1a7a4401124d1ef20345e49)
+Signed-off-by: Darin Morrison <darinmorrison@gmail.com>
+---
+ libs/d3d12core/main.c      |   2 +
+ libs/vkd3d/device.c        |  27 +-
+ libs/vkd3d/swapchain.c     | 984 +++++++++++++++++++++++++++++++------
+ libs/vkd3d/vkd3d_private.h |  10 +-
+ libs/vkd3d/vulkan_procs.h  |   9 +
+ 5 files changed, 870 insertions(+), 162 deletions(-)
+
+diff --git a/libs/d3d12core/main.c b/libs/d3d12core/main.c
+index 63297e28..c3b09524 100644
+--- a/libs/d3d12core/main.c
++++ b/libs/d3d12core/main.c
+@@ -541,6 +541,7 @@ static HRESULT vkd3d_create_instance_global(struct vkd3d_instance **out_instance
+ 
+     static const char * const optional_instance_extensions[] =
+     {
++        VK_KHR_SURFACE_MAINTENANCE_1_EXTENSION_NAME,
+         VK_EXT_SURFACE_MAINTENANCE_1_EXTENSION_NAME,
+         VK_KHR_GET_SURFACE_CAPABILITIES_2_EXTENSION_NAME,
+ #ifndef _WIN32
+@@ -622,6 +623,7 @@ static HRESULT STDMETHODCALLTYPE d3d12core_CreateDeviceFromFactory(
+ 
+     static const char * const optional_device_extensions[] =
+     {
++        VK_KHR_SWAPCHAIN_MAINTENANCE_1_EXTENSION_NAME,
+         VK_EXT_SWAPCHAIN_MAINTENANCE_1_EXTENSION_NAME,
+     };
+ 
+diff --git a/libs/vkd3d/device.c b/libs/vkd3d/device.c
+index f3047b62..2200049e 100644
+--- a/libs/vkd3d/device.c
++++ b/libs/vkd3d/device.c
+@@ -90,6 +90,9 @@ static const struct vkd3d_optional_extension_info optional_device_extensions[] =
+     VK_EXTENSION(KHR_CALIBRATED_TIMESTAMPS, KHR_calibrated_timestamps),
+     VK_EXTENSION(KHR_COOPERATIVE_MATRIX, KHR_cooperative_matrix),
+     VK_EXTENSION(KHR_UNIFIED_IMAGE_LAYOUTS, KHR_unified_image_layouts),
++    VK_EXTENSION(KHR_PRESENT_ID_2, KHR_present_id2),
++    VK_EXTENSION(KHR_PRESENT_WAIT_2, KHR_present_wait2),
++    VK_EXTENSION(EXT_PRESENT_TIMING, EXT_present_timing),
+ #ifdef _WIN32
+     VK_EXTENSION(KHR_EXTERNAL_MEMORY_WIN32, KHR_external_memory_win32),
+     VK_EXTENSION(KHR_EXTERNAL_SEMAPHORE_WIN32, KHR_external_semaphore_win32),
+@@ -160,6 +163,8 @@ static const struct vkd3d_optional_extension_info optional_device_extensions[] =
+ 
+ static const struct vkd3d_optional_extension_info optional_extensions_user[] =
+ {
++    VK_EXTENSION(KHR_SURFACE_MAINTENANCE_1, KHR_surface_maintenance1),
++    VK_EXTENSION(KHR_SWAPCHAIN_MAINTENANCE_1, KHR_swapchain_maintenance1),
+     VK_EXTENSION(EXT_SURFACE_MAINTENANCE_1, EXT_surface_maintenance1),
+     VK_EXTENSION(EXT_SWAPCHAIN_MAINTENANCE_1, EXT_swapchain_maintenance1),
+ };
+@@ -2401,9 +2406,9 @@ static void vkd3d_physical_device_info_init(struct vkd3d_physical_device_info *i
+         vk_prepend_struct(&info->features2, &info->fault_features);
+     }
+ 
+-    if (vulkan_info->EXT_swapchain_maintenance1)
++    if (vulkan_info->KHR_swapchain_maintenance1 || vulkan_info->EXT_swapchain_maintenance1)
+     {
+-        info->swapchain_maintenance1_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SWAPCHAIN_MAINTENANCE_1_FEATURES_EXT;
++        info->swapchain_maintenance1_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SWAPCHAIN_MAINTENANCE_1_FEATURES_KHR;
+         vk_prepend_struct(&info->features2, &info->swapchain_maintenance1_features);
+     }
+ 
+@@ -2493,6 +2498,24 @@ static void vkd3d_physical_device_info_init(struct vkd3d_physical_device_info *i
+         vk_prepend_struct(&info->features2, &info->shader_mixed_float_dot_product_features);
+     }
+ 
++    if (vulkan_info->KHR_present_id2)
++    {
++        info->present_id2_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PRESENT_ID_2_FEATURES_KHR;
++        vk_prepend_struct(&info->features2, &info->present_id2_features);
++    }
++
++    if (vulkan_info->KHR_present_wait2)
++    {
++        info->present_wait2_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PRESENT_WAIT_2_FEATURES_KHR;
++        vk_prepend_struct(&info->features2, &info->present_wait2_features);
++    }
++
++    if (vulkan_info->EXT_present_timing)
++    {
++        info->present_timing_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PRESENT_TIMING_FEATURES_EXT;
++        vk_prepend_struct(&info->features2, &info->present_timing_features);
++    }
++
+     VK_CALL(vkGetPhysicalDeviceFeatures2(device->vk_physical_device, &info->features2));
+     VK_CALL(vkGetPhysicalDeviceProperties2(device->vk_physical_device, &info->properties2));
+ 
+diff --git a/libs/vkd3d/swapchain.c b/libs/vkd3d/swapchain.c
+index 0a3efd35..8c866e05 100644
+--- a/libs/vkd3d/swapchain.c
++++ b/libs/vkd3d/swapchain.c
+@@ -107,7 +107,6 @@ struct dxgi_vk_swap_chain_present_request
+ {
+     uint64_t begin_frame_time_ns;
+     uint32_t user_index;
+-    uint32_t target_min_image_count;
+     DXGI_FORMAT dxgi_format;
+     DXGI_COLOR_SPACE_TYPE dxgi_color_space_type;
+     DXGI_VK_HDR_METADATA dxgi_hdr_metadata;
+@@ -127,6 +126,7 @@ struct present_wait_entry
+     uint64_t id;
+     uint64_t present_count;
+     uint64_t begin_frame_time_ns;
++    bool present_timing_enabled;
+ };
+ 
+ #if defined(_WIN32)
+@@ -157,7 +157,6 @@ struct dxgi_vk_swap_chain
+ 
+     vkd3d_native_sync_handle frame_latency_event;
+     vkd3d_native_sync_handle frame_latency_event_internal;
+-    vkd3d_native_sync_handle present_request_done_event;
+     bool outstanding_present_request;
+     uint32_t frame_latency_event_internal_wait_counts;
+ 
+@@ -171,6 +170,46 @@ struct dxgi_vk_swap_chain
+     bool debug_latency;
+     bool swapchain_maintenance1;
+ 
++    struct
++    {
++        pthread_mutex_t lock;
++
++        /* When requesting feedback, use a specific one if implementation supports multiple. */
++        VkPresentStageFlagsEXT present_stage;
++
++        /* If an implementation wants us to keep track of more than 16 time domains
++         * at one time, just ignore the extra ones, as that is getting rather ridiculous. */
++        uint64_t time_domain_ids[16];
++        VkTimeDomainKHR time_domains[16];
++        uint64_t calibration[16][2];
++        uint32_t time_domains_count;
++        uint64_t time_domain_update_count;
++
++        /* Polling functions are extern-sync so defer this to submit thread,
++         * not present-wait threads. Wait thread notifies submit thread that it
++         * needs to repoll. */
++        uint32_t need_properties_repoll_atomic;
++
++        /* Current knowledge of refresh rates. Also allows us to determine VRR. */
++        uint64_t refresh_duration;
++        uint64_t refresh_interval;
++        uint64_t time_properties_update_count;
++
++        /* For implementations which don't support relative timing,
++         * we need to do our own accumulation estimates. */
++        uint64_t last_absolute_time;
++        uint64_t last_absolute_time_domain_id;
++
++        /* Feedback so that submit thread knows how to compute future present requests.
++         * Wait thread will write to these while holding locks. */
++        struct
++        {
++            uint64_t present_time_domain_id; /* This should be in the time_domain_ids list. */
++            uint64_t present_time;
++            uint64_t present_count; /* Not the ID, since ID can increment in surprising ways. */
++        } feedback;
++    } timing;
++
+     struct
+     {
+         /* When resizing user buffers or emit commands internally,
+@@ -182,6 +221,7 @@ struct dxgi_vk_swap_chain
+         /* PresentID is used depending on features and if we're really presenting on-screen. */
+         uint64_t present_id;
+         bool present_id_valid;
++        bool present_target_enabled;
+ 
+         /* Atomically updated after a PRESENT queue command has processed. Used to atomically check if
+          * all outstanding present events have completed on CPU timeline. */
+@@ -236,6 +276,12 @@ struct dxgi_vk_swap_chain
+         uint64_t low_latency_sem_value;
+ 
+         struct low_latency_state low_latency_state;
++
++        bool wait; /* If any kind of present wait is supported. */
++        bool wait2;
++        bool timing;
++        bool timing_relative;
++        bool timing_absolute;
+     } present;
+ 
+     struct dxgi_vk_swap_chain_present_request request, request_ring[DXGI_MAX_SWAP_CHAIN_BUFFERS];
+@@ -292,8 +338,19 @@ struct dxgi_vk_swap_chain
+         size_t wait_queue_count;
+         pthread_cond_t cond;
+         pthread_mutex_t lock;
+-        bool supports_present_wait;
+         bool skip_waits;
++
++        struct
++        {
++            uint64_t present_id;
++            uint64_t present_count;
++        } id_correlation[16];
++        unsigned int id_correlation_count;
++
++        /* Detect when we need to signal for repoll. Only
++         * accessed by wait thread. */
++        uint64_t timing_domain_counter;
++        uint64_t timing_property_counter;
+     } wait_thread;
+ };
+ 
+@@ -443,7 +500,7 @@ static void dxgi_vk_swap_chain_drain_queue(struct dxgi_vk_swap_chain *chain)
+ }
+ 
+ static void dxgi_vk_swap_chain_push_present_id(struct dxgi_vk_swap_chain *chain,
+-        uint64_t present_count, uint64_t present_id, uint64_t begin_frame_time_ns)
++        uint64_t present_count, uint64_t present_id, uint64_t begin_frame_time_ns, bool present_timing_enabled)
+ {
+     struct present_wait_entry *entry;
+     pthread_mutex_lock(&chain->wait_thread.lock);
+@@ -453,6 +510,7 @@ static void dxgi_vk_swap_chain_push_present_id(struct dxgi_vk_swap_chain *chain,
+     entry->id = present_id;
+     entry->present_count = present_count;
+     entry->begin_frame_time_ns = begin_frame_time_ns;
++    entry->present_timing_enabled = present_timing_enabled;
+     pthread_cond_signal(&chain->wait_thread.cond);
+     pthread_mutex_unlock(&chain->wait_thread.lock);
+ }
+@@ -475,7 +533,7 @@ static void dxgi_vk_swap_chain_cleanup_low_latency(struct dxgi_vk_swap_chain *ch
+ 
+ static void dxgi_vk_swap_chain_cleanup_waiter_thread(struct dxgi_vk_swap_chain *chain)
+ {
+-    dxgi_vk_swap_chain_push_present_id(chain, 0, 0, 0);
++    dxgi_vk_swap_chain_push_present_id(chain, 0, 0, 0, true);
+     pthread_join(chain->wait_thread.thread, NULL);
+     pthread_mutex_destroy(&chain->wait_thread.lock);
+     pthread_cond_destroy(&chain->wait_thread.cond);
+@@ -489,19 +547,13 @@ static void dxgi_vk_swap_chain_cleanup_surface(struct dxgi_vk_swap_chain *chain)
+             chain->vk_surface, NULL));
+     vkd3d_free(chain->properties.formats);
+     pthread_mutex_destroy(&chain->properties.lock);
++    pthread_mutex_destroy(&chain->timing.lock);
+ }
+ 
+ static void dxgi_vk_swap_chain_cleanup_sync_objects(struct dxgi_vk_swap_chain *chain)
+ {
+     vkd3d_native_sync_handle_destroy(chain->frame_latency_event);
+     vkd3d_native_sync_handle_destroy(chain->frame_latency_event_internal);
+-
+-    if (chain->outstanding_present_request)
+-    {
+-        vkd3d_native_sync_handle_acquire(chain->present_request_done_event);
+-        chain->outstanding_present_request = false;
+-    }
+-    vkd3d_native_sync_handle_destroy(chain->present_request_done_event);
+ }
+ 
+ static void dxgi_vk_swap_chain_cleanup_common(struct dxgi_vk_swap_chain *chain)
+@@ -1072,14 +1124,6 @@ static HRESULT STDMETHODCALLTYPE dxgi_vk_swap_chain_Present(IDXGIVkSwapChain2 *i
+     if (PresentFlags & DXGI_PRESENT_TEST)
+         return S_OK;
+ 
+-    /* If we missed the event signal last frame, we have to wait for it now.
+-     * Otherwise, we end up in a floating state where our waits and thread signals might not stay in sync anymore. */
+-    if (chain->outstanding_present_request)
+-    {
+-        vkd3d_native_sync_handle_acquire(chain->present_request_done_event);
+-        chain->outstanding_present_request = false;
+-    }
+-
+     assert(chain->user.index < chain->desc.BufferCount);
+ 
+     /* The present iteration on present thread has a similar counter and it will pick up the request from the ring. */
+@@ -1089,10 +1133,6 @@ static HRESULT STDMETHODCALLTYPE dxgi_vk_swap_chain_Present(IDXGIVkSwapChain2 *i
+     request->swap_interval = SyncInterval;
+     request->dxgi_format = chain->user.backbuffers[chain->user.index]->desc.Format;
+     request->user_index = chain->user.index;
+-    /* If we don't have wait thread, BufferCount needs to be tweaked to control latency.
+-     * Some games that create BufferCount = 3 swapchains expect us to absorb a lot of latency or we start
+-     * starving. If we have waiter thread, we'll block elsewhere. */
+-    request->target_min_image_count = chain->wait_thread.supports_present_wait ? 0 : chain->desc.BufferCount + 1;
+     request->dxgi_color_space_type = chain->user.dxgi_color_space_type;
+     request->dxgi_hdr_metadata = chain->user.dxgi_hdr_metadata;
+     request->modifies_hdr_metadata = chain->user.modifies_hdr_metadata;
+@@ -1146,24 +1186,6 @@ static HRESULT STDMETHODCALLTYPE dxgi_vk_swap_chain_Present(IDXGIVkSwapChain2 *i
+     if (vkd3d_native_sync_handle_is_valid(chain->frame_latency_event_internal))
+         dxgi_vk_swap_chain_wait_internal_handle(chain, low_latency_enable);
+ 
+-    if (vkd3d_native_sync_handle_is_valid(chain->present_request_done_event))
+-    {
+-        /* For non-present wait path where we are trying to simulate KHR_present_wait in a poor man's way.
+-         * Block here until we have processed the present and acquired the next image. This is equivalent
+-         * to a frame latency of swapchain.imageCount - 1. (Usually 2).
+-         * To combat deadlocks, we can add a small timeout.
+-         * Failing the timeout is not severe. It will manifest as stutter, but it is better than spurious deadlock.
+-         * When KHR_present_wait is supported, this path is never taken.
+-         * If we're heavily GPU bound, we will generally end up blocking on GPU-completion fences in game code instead.
+-         * When we are present bound, we will generally always render at > 15 Hz. */
+-        if (!vkd3d_native_sync_handle_acquire_timeout(chain->present_request_done_event, 80))
+-        {
+-            WARN("Detected excessively slow Present() processing. Potential causes: resize, wait-before-signal.\n");
+-            /* Remember to wait for this next present. */
+-            chain->outstanding_present_request = true;
+-        }
+-    }
+-
+     /* For latency debug purposes. Consider a frame to begin when we return from Present() with the next user index set.
+      * This isn't necessarily correct if the application does WaitSingleObject() on the latency right after this call.
+      * That call can take up a frame, so the real latency will be lower than the one reported.
+@@ -1370,16 +1392,105 @@ static bool dxgi_vk_swap_chain_update_formats_locked(struct dxgi_vk_swap_chain *
+     return true;
+ }
+ 
++static void dxgi_vk_swap_chain_update_wait_timing_capabilities(struct dxgi_vk_swap_chain *chain)
++{
++    const struct vkd3d_vk_device_procs *vk_procs = &chain->queue->device->vk_procs;
++    VkPresentTimingSurfaceCapabilitiesEXT present_timing_caps;
++    VkPresentStageFlagBitsEXT primary_stage, secondary_stage;
++    struct d3d12_device *device = chain->queue->device;
++    VkSurfaceCapabilitiesPresentWait2KHR wait2_caps;
++    VkPhysicalDeviceSurfaceInfo2KHR surface_info2;
++    VkSurfaceCapabilitiesPresentId2KHR id2_caps;
++    VkPhysicalDevice vk_physical_device;
++    VkSurfaceCapabilities2KHR caps2;
++
++    const VkPresentStageFlagsEXT useful_present_stages =
++        VK_PRESENT_STAGE_REQUEST_DEQUEUED_BIT_EXT |
++        VK_PRESENT_STAGE_IMAGE_FIRST_PIXEL_OUT_BIT_EXT |
++        VK_PRESENT_STAGE_IMAGE_FIRST_PIXEL_VISIBLE_BIT_EXT;
++
++    vk_physical_device = device->vk_physical_device;
++
++    /* Query present timing and present id2/wait2 support.
++     * We can fallback to present wait1, but we lose timing support. */
++    surface_info2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SURFACE_INFO_2_KHR;
++    surface_info2.pNext = NULL;
++    surface_info2.surface = chain->vk_surface;
++    memset(&caps2, 0, sizeof(caps2));
++    caps2.sType = VK_STRUCTURE_TYPE_SURFACE_CAPABILITIES_2_KHR;
++
++    if (device->device_info.present_timing_features.presentTiming)
++    {
++        memset(&present_timing_caps, 0, sizeof(present_timing_caps));
++        present_timing_caps.sType = VK_STRUCTURE_TYPE_PRESENT_TIMING_SURFACE_CAPABILITIES_EXT;
++        vk_prepend_struct(&caps2, &present_timing_caps);
++    }
++
++    if (device->device_info.present_id2_features.presentId2)
++    {
++        memset(&id2_caps, 0, sizeof(id2_caps));
++        id2_caps.sType = VK_STRUCTURE_TYPE_SURFACE_CAPABILITIES_PRESENT_ID_2_KHR;
++        vk_prepend_struct(&caps2, &id2_caps);
++    }
++
++    if (device->device_info.present_wait2_features.presentWait2)
++    {
++        memset(&wait2_caps, 0, sizeof(wait2_caps));
++        wait2_caps.sType = VK_STRUCTURE_TYPE_SURFACE_CAPABILITIES_PRESENT_WAIT_2_KHR;
++        vk_prepend_struct(&caps2, &wait2_caps);
++    }
++
++    VK_CALL(vkGetPhysicalDeviceSurfaceCapabilities2KHR(vk_physical_device, &surface_info2, &caps2));
++
++    chain->present.wait2 = id2_caps.presentId2Supported && wait2_caps.presentWait2Supported;
++    chain->present.timing = chain->present.wait2 && present_timing_caps.presentTimingSupported &&
++            (present_timing_caps.presentStageQueries & useful_present_stages);
++    chain->present.timing_relative = chain->present.timing && present_timing_caps.presentAtRelativeTimeSupported;
++    chain->present.timing_absolute = chain->present.timing && present_timing_caps.presentAtAbsoluteTimeSupported;
++
++    chain->present.wait =
++            chain->queue->device->device_info.present_wait_features.presentWait ||
++            chain->present.wait2;
++
++    if (!chain->present.wait)
++        FIXME_ONCE("Implementation supports neither present_wait1 or present_wait2. Latency will increase.\n");
++
++    if (!chain->present.timing_relative)
++    {
++        /* If we have to use absolute timings, absolute times are given in terms of the last supported stage,
++         * so we have to correlate in that domain.
++         * No known implementation actually supports time-to-light yet. */
++        primary_stage = VK_PRESENT_STAGE_IMAGE_FIRST_PIXEL_VISIBLE_BIT_EXT;
++        secondary_stage = VK_PRESENT_STAGE_IMAGE_FIRST_PIXEL_OUT_BIT_EXT;
++    }
++    else
++    {
++        /* Prefer PIXEL_OUT over PIXEL_VISIBLE, since as far as we know, DXGI does not takes time-to-light into account. */
++        primary_stage = VK_PRESENT_STAGE_IMAGE_FIRST_PIXEL_OUT_BIT_EXT;
++        secondary_stage = VK_PRESENT_STAGE_IMAGE_FIRST_PIXEL_VISIBLE_BIT_EXT;
++    }
++
++    /* When querying for time, decide on a particular stage.
++     * Prefer PIXEL_OUT over PIXEL_VISIBLE, since as far as we know, DXGI does not takes time-to-light into account. */
++    if (present_timing_caps.presentStageQueries & primary_stage)
++        chain->timing.present_stage = primary_stage;
++    else if (present_timing_caps.presentStageQueries & secondary_stage)
++        chain->timing.present_stage = secondary_stage;
++    else if (present_timing_caps.presentStageQueries & VK_PRESENT_STAGE_REQUEST_DEQUEUED_BIT_EXT)
++        chain->timing.present_stage = VK_PRESENT_STAGE_REQUEST_DEQUEUED_BIT_EXT;
++}
++
+ static HRESULT dxgi_vk_swap_chain_create_surface(struct dxgi_vk_swap_chain *chain, IDXGIVkSurfaceFactory *pFactory)
+ {
+     const struct vkd3d_vk_device_procs *vk_procs = &chain->queue->device->vk_procs;
++    struct d3d12_device *device = chain->queue->device;
+     VkPhysicalDevice vk_physical_device;
+     VkInstance vk_instance;
+     VkBool32 supported;
+     VkResult vr;
+ 
+-    vk_instance = chain->queue->device->vkd3d_instance->vk_instance;
+-    vk_physical_device = chain->queue->device->vk_physical_device;
++    vk_instance = device->vkd3d_instance->vk_instance;
++    vk_physical_device = device->vk_physical_device;
+     vr = IDXGIVkSurfaceFactory_CreateSurface(pFactory, vk_instance, vk_physical_device, &chain->vk_surface);
+ 
+     if (vr < 0)
+@@ -1402,7 +1513,7 @@ static HRESULT dxgi_vk_swap_chain_create_surface(struct dxgi_vk_swap_chain *chai
+     }
+ 
+     pthread_mutex_init(&chain->properties.lock, NULL);
+-
++    pthread_mutex_init(&chain->timing.lock, NULL);
+     return S_OK;
+ }
+ 
+@@ -1435,50 +1546,39 @@ static HRESULT dxgi_vk_swap_chain_init_sync_objects(struct dxgi_vk_swap_chain *c
+         chain->frame_latency = DEFAULT_FRAME_LATENCY;
+     }
+ 
+-    if (chain->queue->device->device_info.present_wait_features.presentWait)
++    /* Applications can easily forget to increment their latency handles.
++     * This means we don't keep latency objects in sync anymore.
++     * Maintain our own latency fence to keep things under control.
++     * If we don't have present wait, we will sync with present_request_done_event (below) instead.
++     * Adding more sync against internal blit fences is meaningless
++     * and can cause weird pumping issues in some cases since we're simultaneously syncing
++     * against two different timelines.
++     * While we used to deduce latency based on BufferCount by default,
++     * it was causing various issues, especially on Deck.
++     * With 2 frame latency where CPU and GPU are decently subscribed,
++     * the present wait event will come in with VBlank-alignment, and that extra delay can be enough to nudge CPU timings to the point
++     * where GPU goes falsely idle. This ends up dropping GPU clocks, and we have bad feedback loop effects.
++     * This effect has been observed in enough games now that it's too risky to enable that behavior by default. */
++    chain->frame_latency_internal = DEFAULT_FRAME_LATENCY;
++
++    if (vkd3d_get_env_var("VKD3D_SWAPCHAIN_LATENCY_FRAMES", env, sizeof(env)))
+     {
+-        /* Applications can easily forget to increment their latency handles.
+-         * This means we don't keep latency objects in sync anymore.
+-         * Maintain our own latency fence to keep things under control.
+-         * If we don't have present wait, we will sync with present_request_done_event (below) instead.
+-         * Adding more sync against internal blit fences is meaningless
+-         * and can cause weird pumping issues in some cases since we're simultaneously syncing
+-         * against two different timelines.
+-         * While we used to deduce latency based on BufferCount by default,
+-         * it was causing various issues, especially on Deck.
+-         * With 2 frame latency where CPU and GPU are decently subscribed,
+-         * the present wait event will come in with VBlank-alignment, and that extra delay can be enough to nudge CPU timings to the point
+-         * where GPU goes falsely idle. This ends up dropping GPU clocks, and we have bad feedback loop effects.
+-         * This effect has been observed in enough games now that it's too risky to enable that behavior by default. */
+-        chain->frame_latency_internal = DEFAULT_FRAME_LATENCY;
+-
+-        if (vkd3d_get_env_var("VKD3D_SWAPCHAIN_LATENCY_FRAMES", env, sizeof(env)))
+-        {
+-            latency_override = strtoul(env, NULL, 0);
+-            if (latency_override >= 1 && latency_override <= DXGI_MAX_SWAP_CHAIN_BUFFERS)
+-                chain->frame_latency_internal = latency_override;
+-        }
+-
+-        INFO("Ensure maximum latency of %u frames with KHR_present_wait.\n",
+-                chain->frame_latency_internal);
+-
+-        /* On the first frame, we are supposed to acquire,
+-         * but we only acquire after a Present, so do the implied one here.
+-         * We consume a count after Present(), i.e. start of next frame,
+-         * starting with one less takes care of this. */
+-        if (FAILED(hr = vkd3d_native_sync_handle_create(chain->frame_latency_internal - 1,
+-                VKD3D_NATIVE_SYNC_HANDLE_TYPE_SEMAPHORE, &chain->frame_latency_event_internal)))
+-        {
+-            WARN("Failed to create internal frame latency semaphore, hr %#x.\n", hr);
+-            return hr;
+-        }
++        latency_override = strtoul(env, NULL, 0);
++        if (latency_override >= 1 && latency_override <= DXGI_MAX_SWAP_CHAIN_BUFFERS)
++            chain->frame_latency_internal = latency_override;
+     }
+ 
+-    if (!chain->queue->device->device_info.present_wait_features.presentWait &&
+-            FAILED(hr = vkd3d_native_sync_handle_create(0, VKD3D_NATIVE_SYNC_HANDLE_TYPE_EVENT,
+-                    &chain->present_request_done_event)))
++    INFO("Ensure maximum latency of %u frames with KHR_present_wait.\n",
++            chain->frame_latency_internal);
++
++    /* On the first frame, we are supposed to acquire,
++     * but we only acquire after a Present, so do the implied one here.
++     * We consume a count after Present(), i.e. start of next frame,
++     * starting with one less takes care of this. */
++    if (FAILED(hr = vkd3d_native_sync_handle_create(chain->frame_latency_internal - 1,
++            VKD3D_NATIVE_SYNC_HANDLE_TYPE_SEMAPHORE, &chain->frame_latency_event_internal)))
+     {
+-        WARN("Failed to create internal present done event, hr %#x.\n", hr);
++        WARN("Failed to create internal frame latency semaphore, hr %#x.\n", hr);
+         return hr;
+     }
+ 
+@@ -1567,6 +1667,7 @@ static void dxgi_vk_swap_chain_destroy_swapchain_in_present_task(struct dxgi_vk_
+     chain->present.backbuffer_count = 0;
+     chain->present.force_swapchain_recreation = false;
+     chain->present.present_id_valid = false;
++    chain->present.present_target_enabled = false;
+     chain->present.present_id = 0;
+     chain->present.current_backbuffer_index = UINT32_MAX;
+ 
+@@ -1697,8 +1798,8 @@ static bool dxgi_vk_swap_chain_find_compatible_unlocked_present_mode(
+ {
+     const struct vkd3d_vk_device_procs *vk_procs = &chain->queue->device->vk_procs;
+     VkPhysicalDeviceSurfaceInfo2KHR surface_info2;
+-    VkSurfacePresentModeCompatibilityEXT compat;
+-    VkSurfacePresentModeEXT present_mode;
++    VkSurfacePresentModeCompatibilityKHR compat;
++    VkSurfacePresentModeKHR present_mode;
+     VkPresentModeKHR present_modes[32];
+     VkSurfaceCapabilities2KHR caps2;
+     bool has_compatible = false;
+@@ -1711,14 +1812,14 @@ static bool dxgi_vk_swap_chain_find_compatible_unlocked_present_mode(
+     surface_info2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SURFACE_INFO_2_KHR;
+     surface_info2.pNext = NULL;
+     surface_info2.surface = chain->vk_surface;
+-    present_mode.sType = VK_STRUCTURE_TYPE_SURFACE_PRESENT_MODE_EXT;
++    present_mode.sType = VK_STRUCTURE_TYPE_SURFACE_PRESENT_MODE_KHR;
+     present_mode.pNext = NULL;
+     present_mode.presentMode = VK_PRESENT_MODE_FIFO_KHR;
+     vk_prepend_struct(&surface_info2, &present_mode);
+ 
+     caps2.sType = VK_STRUCTURE_TYPE_SURFACE_CAPABILITIES_2_KHR;
+     caps2.pNext = NULL;
+-    compat.sType = VK_STRUCTURE_TYPE_SURFACE_PRESENT_MODE_COMPATIBILITY_EXT;
++    compat.sType = VK_STRUCTURE_TYPE_SURFACE_PRESENT_MODE_COMPATIBILITY_KHR;
+     compat.pNext = NULL;
+     compat.presentModeCount = ARRAY_SIZE(present_modes);
+     compat.pPresentModes = present_modes;
+@@ -1850,12 +1951,136 @@ static void dxgi_vk_swap_chain_anti_lag_state_update(struct dxgi_vk_swap_chain *
+     }
+ }
+ 
++static void dxgi_vk_swap_chain_poll_time_properties(struct dxgi_vk_swap_chain *chain)
++{
++    const struct vkd3d_vk_device_procs *vk_procs = &chain->queue->device->vk_procs;
++    VkSwapchainTimingPropertiesEXT props;
++
++    memset(&props, 0, sizeof(props));
++    props.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_TIMING_PROPERTIES_EXT;
++    if (VK_CALL(vkGetSwapchainTimingPropertiesEXT(chain->queue->device->vk_device,
++            chain->present.vk_swapchain, &props, &chain->timing.time_properties_update_count)) != VK_SUCCESS)
++    {
++        /* This is expected to happen for the first few frames when running on e.g. Wayland. */
++
++        chain->timing.refresh_duration = 0;
++        chain->timing.refresh_interval = 0;
++        /* Keep repolling until we get something useful. */
++        vkd3d_atomic_uint32_store_explicit(&chain->timing.need_properties_repoll_atomic, 1, vkd3d_memory_order_relaxed);
++        return;
++    }
++
++    chain->timing.refresh_duration = props.refreshDuration;
++    chain->timing.refresh_interval = props.refreshInterval;
++}
++
++static void dxgi_vk_swap_chain_poll_time_domains(struct dxgi_vk_swap_chain *chain)
++{
++    const struct vkd3d_vk_device_procs *vk_procs = &chain->queue->device->vk_procs;
++    VkSwapchainTimeDomainPropertiesEXT props;
++    uint32_t i;
++
++    memset(&props, 0, sizeof(props));
++    props.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_TIME_DOMAIN_PROPERTIES_EXT;
++    props.timeDomainCount = ARRAY_SIZE(chain->timing.time_domains);
++    props.pTimeDomains = chain->timing.time_domains;
++    props.pTimeDomainIds = chain->timing.time_domain_ids;
++    chain->timing.time_domains_count = 0;
++
++    if (VK_CALL(vkGetSwapchainTimeDomainPropertiesEXT(chain->queue->device->vk_device,
++            chain->present.vk_swapchain, &props, &chain->timing.time_domain_update_count)) < 0)
++    {
++        WARN("Failed to query time domain properties for swapchain.\n");
++        return;
++    }
++
++    /* PRESENT_STAGE_LOCAL is guaranteed by spec to be supported, so only use that.
++     * This way we also don't have to ponder weirdness with QPC rescale, etc. */
++    for (i = 0; i < props.timeDomainCount; i++)
++    {
++        if (chain->timing.time_domains[i] == VK_TIME_DOMAIN_PRESENT_STAGE_LOCAL_EXT)
++        {
++            chain->timing.time_domains[chain->timing.time_domains_count] = chain->timing.time_domains[i];
++            chain->timing.time_domain_ids[chain->timing.time_domains_count] = chain->timing.time_domain_ids[i];
++            chain->timing.time_domains_count++;
++        }
++    }
++}
++
++static bool dxgi_vk_swap_chain_poll_single_calibration(struct dxgi_vk_swap_chain *chain,
++        VkTimeDomainEXT time_domain, uint64_t time_domain_id,
++        uint64_t *calibration)
++{
++    const struct vkd3d_vk_device_procs *vk_procs = &chain->queue->device->vk_procs;
++    VkSwapchainCalibratedTimestampInfoEXT swapchain_info;
++    VkCalibratedTimestampInfoKHR infos[2];
++    uint64_t max_deviation = 0;
++    unsigned int i;
++
++#ifdef _WIN32
++    const VkTimeDomainKHR domain = VK_TIME_DOMAIN_QUERY_PERFORMANCE_COUNTER_KHR;
++#else
++    const VkTimeDomainKHR domain = VK_TIME_DOMAIN_CLOCK_MONOTONIC_RAW_KHR;
++#endif
++
++    memset(infos, 0, sizeof(infos));
++    infos[0].sType = VK_STRUCTURE_TYPE_CALIBRATED_TIMESTAMP_INFO_KHR;
++    infos[0].timeDomain = domain;
++
++    infos[1].sType = VK_STRUCTURE_TYPE_CALIBRATED_TIMESTAMP_INFO_KHR;
++    infos[1].timeDomain = time_domain;
++
++    if (infos[1].timeDomain == VK_TIME_DOMAIN_PRESENT_STAGE_LOCAL_EXT ||
++            infos[1].timeDomain == VK_TIME_DOMAIN_SWAPCHAIN_LOCAL_EXT)
++    {
++        memset(&swapchain_info, 0, sizeof(swapchain_info));
++        swapchain_info.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CALIBRATED_TIMESTAMP_INFO_EXT;
++        swapchain_info.swapchain = chain->present.vk_swapchain;
++        swapchain_info.timeDomainId = time_domain_id;
++        swapchain_info.presentStage = chain->timing.present_stage;
++        infos[1].pNext = &swapchain_info;
++    }
++
++    for (i = 0; i < 10; i++)
++    {
++        if (VK_CALL(vkGetCalibratedTimestampsKHR(chain->queue->device->vk_device, 2, infos,
++            calibration, &max_deviation)) != VK_SUCCESS)
++            return false;
++
++        /* Spin until we get a sufficiently accurate estimate just in case something freaky happens. */
++        if (max_deviation < 100000)
++            break;
++    }
++
++    if (i == 10)
++        WARN("Failed to adequately calibrate timestamps even after 10 attempts.\n");
++
++    TRACE("Recalibrated with max deviation %"PRIu64" ns after %u iterations.\n",
++        max_deviation, i);
++
++    return true;
++}
++
++static void dxgi_vk_swap_chain_poll_calibration(struct dxgi_vk_swap_chain *chain)
++{
++    unsigned int i;
++
++    for (i = 0; i < chain->timing.time_domains_count; i++)
++    {
++        if (!dxgi_vk_swap_chain_poll_single_calibration(chain, chain->timing.time_domains[i],
++                chain->timing.time_domain_ids[i], chain->timing.calibration[i]))
++        {
++            FIXME("Failed to calibrate.\n");
++        }
++    }
++}
++
+ static void dxgi_vk_swap_chain_recreate_swapchain_in_present_task(struct dxgi_vk_swap_chain *chain)
+ {
+     const struct vkd3d_vk_device_procs *vk_procs = &chain->queue->device->vk_procs;
+     VkPhysicalDevice vk_physical_device = chain->queue->device->vk_physical_device;
+     VkSwapchainLatencyCreateInfoNV swapchain_latency_create_info;
+-    VkSwapchainPresentModesCreateInfoEXT present_modes_info;
++    VkSwapchainPresentModesCreateInfoKHR present_modes_info;
+     VkDevice vk_device = chain->queue->device->vk_device;
+     VkCommandPoolCreateInfo command_pool_create_info;
+     VkSwapchainCreateInfoKHR swapchain_create_info;
+@@ -1890,6 +2115,7 @@ static void dxgi_vk_swap_chain_recreate_swapchain_in_present_task(struct dxgi_vk
+     pthread_mutex_unlock(&chain->properties.lock);
+ 
+     VK_CALL(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(vk_physical_device, chain->vk_surface, &surface_caps));
++    dxgi_vk_swap_chain_update_wait_timing_capabilities(chain);
+ 
+     /* Win32 quirk. Minimized windows have maximum extents of zero. */
+     new_occlusion_state = surface_caps.maxImageExtent.width == 0 || surface_caps.maxImageExtent.height == 0;
+@@ -1948,7 +2174,7 @@ static void dxgi_vk_swap_chain_recreate_swapchain_in_present_task(struct dxgi_vk
+ 
+             present_mode_group[0] = chain->present.selected_present_mode;
+             present_mode_group[1] = chain->present.unlocked_present_mode;
+-            present_modes_info.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_PRESENT_MODES_CREATE_INFO_EXT;
++            present_modes_info.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_PRESENT_MODES_CREATE_INFO_KHR;
+             present_modes_info.pNext = NULL;
+             present_modes_info.pPresentModes = present_mode_group;
+             present_modes_info.presentModeCount = ARRAY_SIZE(present_mode_group);
+@@ -1982,11 +2208,8 @@ static void dxgi_vk_swap_chain_recreate_swapchain_in_present_task(struct dxgi_vk
+     swapchain_create_info.clipped = VK_TRUE;
+ 
+     /* We don't block directly on Present(), so there's no reason to use more than 3 images if even application requests more.
+-     * We could get away with 2 if we used WSI acquire semaphore and async acquire was supported, but e.g. Mesa does not support that.
+-     * However, without present-wait, we'll have to inherit quirky behavior from legacy swapchain
+-     * and use minImageCount = BufferCount + 1. */
+-    swapchain_create_info.minImageCount = max(max(chain->request.target_min_image_count, 3u),
+-            surface_caps.minImageCount);
++     * We could get away with 2 if we used WSI acquire semaphore and async acquire was supported, but e.g. Mesa does not support that. */
++    swapchain_create_info.minImageCount = max(3u, surface_caps.minImageCount);
+ 
+     vkd3d_get_env_var("VKD3D_SWAPCHAIN_IMAGES", count_env, sizeof(count_env));
+     if (strlen(count_env) > 0)
+@@ -2017,6 +2240,11 @@ static void dxgi_vk_swap_chain_recreate_swapchain_in_present_task(struct dxgi_vk
+     if (chain->queue->device->vk_info.NV_low_latency2)
+         pthread_mutex_lock(&chain->present.low_latency_swapchain_lock);
+ 
++    if (chain->present.wait2)
++        swapchain_create_info.flags |= VK_SWAPCHAIN_CREATE_PRESENT_ID_2_BIT_KHR | VK_SWAPCHAIN_CREATE_PRESENT_WAIT_2_BIT_KHR;
++    if (chain->present.timing)
++        swapchain_create_info.flags |= VK_SWAPCHAIN_CREATE_PRESENT_TIMING_BIT_EXT;
++
+     vr = VK_CALL(vkCreateSwapchainKHR(vk_device, &swapchain_create_info, NULL, &chain->present.vk_swapchain));
+     if (vr < 0)
+     {
+@@ -2027,6 +2255,31 @@ static void dxgi_vk_swap_chain_recreate_swapchain_in_present_task(struct dxgi_vk
+         return;
+     }
+ 
++    /* We'll be polling this in the present wait thread, so the queue size can be small,
++     * but just use something reasonable to ensure it's never filled. */
++    if (chain->present.timing)
++    {
++        chain->timing.feedback.present_time = 0;
++        chain->timing.feedback.present_count = 0;
++        chain->timing.feedback.present_time_domain_id = 0;
++
++        dxgi_vk_swap_chain_poll_time_properties(chain);
++        dxgi_vk_swap_chain_poll_time_domains(chain);
++        dxgi_vk_swap_chain_poll_calibration(chain);
++
++        /* For the first timing requests, ensure we're requesting a sensible time domain. */
++        if (chain->timing.time_domains_count)
++            chain->timing.feedback.present_time_domain_id = chain->timing.time_domain_ids[0];
++
++        /* This could lead to problems if we have IMMEDIATE, but we ignore present timing for IMMEDIATE or MAILBOX,
++         * so there is no real risk of overflow. */
++        if (VK_CALL(vkSetSwapchainPresentTimingQueueSizeEXT(vk_device, chain->present.vk_swapchain,
++                DXGI_MAX_SWAP_CHAIN_BUFFERS)) != VK_SUCCESS)
++        {
++            ERR("Failed to set swapchain queue size.\n");
++        }
++    }
++
+     /* If low latency is supported restore the current low latency state now */
+     if (chain->queue->device->vk_info.NV_low_latency2)
+     {
+@@ -2090,7 +2343,6 @@ static bool dxgi_vk_swap_chain_request_needs_swapchain_recreation(
+ {
+     return request->dxgi_color_space_type != last_request->dxgi_color_space_type ||
+             request->dxgi_format != last_request->dxgi_format ||
+-            request->target_min_image_count != last_request->target_min_image_count ||
+             ((!!request->swap_interval) != (!!last_request->swap_interval) &&
+                     !chain->present.compatible_unlocked_present_mode);
+ }
+@@ -2490,13 +2742,155 @@ static VkResult dxgi_vk_swap_chain_try_acquire_next_image(struct dxgi_vk_swap_ch
+     return vr;
+ }
+ 
++static bool dxgi_vk_swap_chain_setup_present_timing_request(
++        struct dxgi_vk_swap_chain *chain, uint64_t present_count, VkPresentTimingInfoEXT *timing_info)
++{
++    bool frame_limiter_is_floating_cycle = false;
++    bool use_present_timing_target;
++    uint64_t frame_limiter_ns = 0;
++
++    pthread_mutex_lock(&chain->frame_rate_limit.lock);
++    frame_limiter_ns = chain->frame_rate_limit.target_interval_ns;
++    pthread_mutex_unlock(&chain->frame_rate_limit.lock);
++
++    timing_info->presentStageQueries = chain->timing.present_stage;
++    /* If we're using VK_TIME_DOMAIN_PRESENT_STAGE_LOCAL. */
++    timing_info->targetTimeDomainPresentStage = chain->timing.present_stage;
++
++    pthread_mutex_lock(&chain->timing.lock);
++
++    /* This applies to requested feedback as well as targetTime.
++     * After swapchain creation, we will use the first supported domain ID. */
++    timing_info->timeDomainId = chain->timing.feedback.present_time_domain_id;
++
++    /* If the time domain changed, we cannot trust our accumulator anymore. Restart from feedback. */
++    if (chain->timing.last_absolute_time_domain_id != timing_info->timeDomainId)
++    {
++        chain->timing.last_absolute_time = 0;
++        chain->timing.last_absolute_time_domain_id = timing_info->timeDomainId;
++    }
++
++#define DELTA_NS 500000
++
++    /* Present timing targets only work on FIFO modes.
++     * Don't bother trying to get timing feedback for non-FIFO modes. */
++    use_present_timing_target = chain->request.swap_interval > 0 &&
++            present_count > chain->timing.feedback.present_count &&
++            chain->timing.feedback.present_count &&
++            chain->timing.refresh_duration >= DELTA_NS &&
++            (chain->present.timing_absolute || chain->present.timing_relative);
++
++    if (use_present_timing_target && frame_limiter_ns > chain->timing.refresh_duration)
++    {
++        uint64_t effective_interval = chain->timing.refresh_duration;
++        uint64_t align;
++
++        if (chain->timing.refresh_interval != 0 && chain->timing.refresh_interval != UINT64_MAX)
++            effective_interval = chain->timing.refresh_interval;
++
++        /* If the limiter requests a rate close enough, we accept that. */
++        align = frame_limiter_ns % effective_interval;
++        if (align > effective_interval / 256 && align < 255 * effective_interval / 256)
++            frame_limiter_is_floating_cycle = true;
++
++        /* If we need to latch onto a fractional cycle and pretend we have
++         * done a proper mode change, we might not be able to effectively use present timing targets. */
++        if (frame_limiter_is_floating_cycle &&
++                chain->timing.refresh_interval != UINT64_MAX &&
++                !chain->present.timing_absolute)
++        {
++            use_present_timing_target = false;
++            FIXME_ONCE("Cannot implement fractional present timing with current setup, falling back to CPU limiter.\n");
++        }
++    }
++
++    if (use_present_timing_target)
++    {
++        /* It's possible for implementation to report a 60 Hz display that is limited to 30 Hz (think e.g. gamescope).
++         * In this case duration is 33.3ms, while interval is 16.6ms.
++         * For present interval purposes, we want to use the 16.6ms as base interval. */
++        uint64_t effective_interval = chain->timing.refresh_duration;
++        if (chain->timing.refresh_interval != 0 && chain->timing.refresh_interval != UINT64_MAX)
++            effective_interval = chain->timing.refresh_interval;
++
++        timing_info->targetTime = effective_interval * chain->request.swap_interval;
++        timing_info->targetTime = max(timing_info->targetTime, frame_limiter_ns);
++
++        if (chain->timing.refresh_interval == UINT64_MAX)
++            frame_limiter_is_floating_cycle = true;
++
++        /* Don't compensate anything for VRR or fractional cycle limiter. */
++        if (!frame_limiter_is_floating_cycle)
++        {
++            if (chain->timing.refresh_interval == 0)
++            {
++                /* Unknown if VRR or FRR. Assume FRR and add a safety margin for rounding errors,
++                 * but don't get wildly off target if it's VRR. */
++
++                if (frame_limiter_ns)
++                {
++                    /* If we're limiting frame rate at exact cycle rate, we need strict accumulation.
++                     * Both VRR and FRR should work here. */
++                    timing_info->flags |= VK_PRESENT_TIMING_INFO_PRESENT_AT_NEAREST_REFRESH_CYCLE_BIT_EXT;
++                }
++                else
++                    timing_info->targetTime -= DELTA_NS;
++            }
++            else
++            {
++                /* FRR. Use the dedicated "snap to refresh cycle" implementation. */
++                timing_info->flags |= VK_PRESENT_TIMING_INFO_PRESENT_AT_NEAREST_REFRESH_CYCLE_BIT_EXT;
++            }
++        }
++
++        if (!chain->present.timing_relative || (chain->present.timing_absolute && frame_limiter_is_floating_cycle))
++        {
++            uint64_t minimum_previous_time;
++            uint64_t compensation_cycles;
++            uint64_t align;
++
++            compensation_cycles = present_count - 1 - chain->timing.feedback.present_count;
++
++            /* It's impossible for the previous present to have completed before this time.
++             * Catch-up mechanic if there are large stalls with interval > 1. */
++            minimum_previous_time =
++                    chain->timing.feedback.present_time + compensation_cycles * chain->timing.refresh_duration;
++
++            minimum_previous_time = max(minimum_previous_time, chain->timing.last_absolute_time);
++            timing_info->targetTime += minimum_previous_time;
++            chain->timing.last_absolute_time = timing_info->targetTime;
++
++            align = (chain->timing.last_absolute_time - chain->timing.feedback.present_time) % effective_interval;
++
++            /* Re-align over time to clean up clock drift. For confirmed VRR we don't care, and want a pure pace. */
++            if (!frame_limiter_is_floating_cycle)
++            {
++                if (align > effective_interval / 2)
++                    chain->timing.last_absolute_time += min((effective_interval - align) / 8, DELTA_NS);
++                else
++                    chain->timing.last_absolute_time -= min(align / 8, DELTA_NS);
++            }
++        }
++        else
++        {
++            timing_info->flags |= VK_PRESENT_TIMING_INFO_PRESENT_AT_RELATIVE_TIME_BIT_EXT;
++        }
++    }
++
++    pthread_mutex_unlock(&chain->timing.lock);
++    return use_present_timing_target;
++}
++
+ static void dxgi_vk_swap_chain_present_iteration(struct dxgi_vk_swap_chain *chain, uint64_t present_count, unsigned int retry_counter)
+ {
+     const struct vkd3d_vk_device_procs *vk_procs = &chain->queue->device->vk_procs;
+-    VkSwapchainPresentFenceInfoEXT present_fence_info;
+-    VkSwapchainPresentModeInfoEXT present_mode_info;
++    VkSwapchainPresentFenceInfoKHR present_fence_info;
++    VkSwapchainPresentModeInfoKHR present_mode_info;
++    VkPresentTimingsInfoEXT timings_info;
++    VkPresentTimingInfoEXT timing_info;
+     VkPresentInfoKHR present_info;
+     uint64_t minimum_present_id;
++    VkPresentId2KHR present_id2;
+     VkPresentIdKHR present_id;
+     uint32_t swapchain_index;
+     bool pacing_should_wait;
+@@ -2559,7 +2953,7 @@ static void dxgi_vk_swap_chain_present_iteration(struct dxgi_vk_swap_chain *chai
+         chain->present.swapchain_fence_index = (chain->present.swapchain_fence_index + 1) %
+                 ARRAY_SIZE(chain->present.vk_swapchain_fences);
+ 
+-        present_fence_info.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_PRESENT_FENCE_INFO_EXT;
++        present_fence_info.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_PRESENT_FENCE_INFO_KHR;
+         present_fence_info.swapchainCount = 1;
+         present_fence_info.pFences = &chain->present.vk_swapchain_fences[chain->present.swapchain_fence_index];
+         present_fence_info.pNext = NULL;
+@@ -2570,7 +2964,7 @@ static void dxgi_vk_swap_chain_present_iteration(struct dxgi_vk_swap_chain *chai
+ 
+         if (chain->present.compatible_unlocked_present_mode)
+         {
+-            present_mode_info.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_PRESENT_MODE_INFO_EXT;
++            present_mode_info.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_PRESENT_MODE_INFO_KHR;
+             present_mode_info.pNext = NULL;
+             present_mode_info.swapchainCount = 1;
+             present_mode_info.pPresentModes = &chain->present.selected_present_mode;
+@@ -2587,7 +2981,7 @@ static void dxgi_vk_swap_chain_present_iteration(struct dxgi_vk_swap_chain *chai
+      * Uncapped swapchains will pump their frame latency handles through the fallback path of blit command being done.
+      * Especially on Xwayland, the present ID is updated when images actually hit on-screen due to MAILBOX behavior.
+      * This would unnecessarily stall our progress. */
+-    if (chain->wait_thread.supports_present_wait && !chain->present.present_id_valid && pacing_should_wait)
++    if (chain->present.wait && !chain->present.present_id_valid && pacing_should_wait)
+     {
+         minimum_present_id = chain->present.present_id + 1;
+         if (chain->present.low_latency_state.mode)
+@@ -2614,16 +3008,45 @@ static void dxgi_vk_swap_chain_present_iteration(struct dxgi_vk_swap_chain *chai
+         if (chain->debug_latency)
+             INFO("Presenting with frame ID: %"PRIu64".\n", chain->present.present_id);
+ 
+-        present_id.sType = VK_STRUCTURE_TYPE_PRESENT_ID_KHR;
+-        present_id.pNext = NULL;
+-        present_id.swapchainCount = 1;
+-        present_id.pPresentIds = &chain->present.present_id;
++        if (chain->present.wait2)
++        {
++            present_id2.sType = VK_STRUCTURE_TYPE_PRESENT_ID_2_KHR;
++            present_id2.pNext = NULL;
++            present_id2.swapchainCount = 1;
++            present_id2.pPresentIds = &chain->present.present_id;
++            vk_prepend_struct(&present_info, &present_id2);
++        }
++        else
++        {
++            present_id.sType = VK_STRUCTURE_TYPE_PRESENT_ID_KHR;
++            present_id.pNext = NULL;
++            present_id.swapchainCount = 1;
++            present_id.pPresentIds = &chain->present.present_id;
++            vk_prepend_struct(&present_info, &present_id);
++        }
++
+         use_present_id = true;
+-        vk_prepend_struct(&present_info, &present_id);
+     }
+     else
+         use_present_id = false;
+ 
++    if (chain->present.timing && chain->timing.time_domains_count)
++    {
++        memset(&timings_info, 0, sizeof(timings_info));
++        memset(&timing_info, 0, sizeof(timing_info));
++
++        timings_info.sType = VK_STRUCTURE_TYPE_PRESENT_TIMINGS_INFO_EXT;
++        timing_info.sType = VK_STRUCTURE_TYPE_PRESENT_TIMING_INFO_EXT;
++        timings_info.swapchainCount = 1;
++        timings_info.pTimingInfos = &timing_info;
++
++        if (dxgi_vk_swap_chain_setup_present_timing_request(chain, present_count, &timing_info))
++            chain->present.present_target_enabled = true;
++
++        if (use_present_id)
++            vk_prepend_struct(&present_info, &timings_info);
++    }
++
+     vk_queue = vkd3d_queue_acquire(chain->queue->vkd3d_queue);
+     VKD3D_REGION_BEGIN(queue_present);
+     vr = VK_CALL(vkQueuePresentKHR(vk_queue, &present_info));
+@@ -2666,11 +3089,38 @@ static void dxgi_vk_swap_chain_signal_waitable_handle(struct dxgi_vk_swap_chain
+ {
+     uint64_t present_id = chain->present.present_id_valid ? chain->present.present_id : 0;
+ 
+-    dxgi_vk_swap_chain_push_present_id(chain, present_count, present_id, chain->request.begin_frame_time_ns);
++    dxgi_vk_swap_chain_push_present_id(chain, present_count, present_id, chain->request.begin_frame_time_ns,
++            chain->present.present_target_enabled);
+ }
+ 
+ static void dxgi_vk_swap_chain_delay_next_frame(struct dxgi_vk_swap_chain *chain, uint64_t current_time_ns);
+ 
++static void dxgi_vk_swap_chain_update_present_timing(struct dxgi_vk_swap_chain *chain)
++{
++    if (!chain->present.vk_swapchain)
++        return;
++
++    /* Wait thread can signal that counters changed, so we should repoll if refresh rates change, etc.
++     * These calls are extern-sync, so we cannot do them on the thread easily. */
++    if (vkd3d_atomic_uint32_exchange_explicit(&chain->timing.need_properties_repoll_atomic, 0, vkd3d_memory_order_acquire))
++    {
++        dxgi_vk_swap_chain_poll_time_properties(chain);
++
++        /* Waiter thread looks like time domains and calibration state. */
++        pthread_mutex_lock(&chain->timing.lock);
++        dxgi_vk_swap_chain_poll_time_domains(chain);
++        dxgi_vk_swap_chain_poll_calibration(chain);
++        pthread_mutex_unlock(&chain->timing.lock);
++    }
++    else if (chain->present.present_count % 64 == 0)
++    {
++        /* Regularly recalibrate. */
++        pthread_mutex_lock(&chain->timing.lock);
++        dxgi_vk_swap_chain_poll_calibration(chain);
++        pthread_mutex_unlock(&chain->timing.lock);
++    }
++}
++
+ static void dxgi_vk_swap_chain_present_callback(void *chain_)
+ {
+     const struct dxgi_vk_swap_chain_present_request *next_request;
+@@ -2689,8 +3139,12 @@ static void dxgi_vk_swap_chain_present_callback(void *chain_)
+     if (chain->queue->device->vk_info.NV_low_latency2)
+         dxgi_vk_swap_chain_low_latency_state_update(chain);
+ 
++    if (chain->present.timing)
++        dxgi_vk_swap_chain_update_present_timing(chain);
++
+     /* If no QueuePresentKHRs successfully commits a present ID, we'll fallback to a normal queue signal. */
+     chain->present.present_id_valid = false;
++    chain->present.present_target_enabled = false;
+ 
+     /* A present iteration may or may not render to backbuffer. We'll apply best effort here.
+      * Forward progress must be ensured, so if we cannot get anything on-screen in a reasonable amount of retries, ignore it. */
+@@ -2707,29 +3161,6 @@ static void dxgi_vk_swap_chain_present_callback(void *chain_)
+      * No need to signal a condition variable, main thread can poll to deduce. */
+     vkd3d_atomic_uint64_store_explicit(&chain->present.present_count, next_present_count, vkd3d_memory_order_release);
+ 
+-    /* Considerations for implementations without KHR_present_wait which we inherit from the legacy swapchain.
+-     * To have any hope of achieving reasonable and bounded latency,
+-     * we need to use the method where we eagerly acquire next image right after present.
+-     * This avoids any late blocking when presenting, which is a disaster for latency.
+-     * The present caller must then block on the queue reaching here.
+-     * To avoid hard deadlocks with present wait-before-signal,
+-     * a reasonably small timeout is possible.
+-     * A deadlock in this scenario has only been observed on NVIDIA, which supports present_wait anyways.
+-     *
+-     * On implementations with present wait, blocking late is a good idea since it avoids potential
+-     * GPU bubbles. While blocking here, we cannot submit more work to the GPU on this queue,
+-     * since we're in a queue callback. */
+-    if (!chain->wait_thread.supports_present_wait)
+-    {
+-        dxgi_vk_swap_chain_try_acquire_next_image(chain);
+-        dxgi_vk_swap_chain_delay_next_frame(chain, vkd3d_get_current_time_ns());
+-
+-        /* The old implementation used acquire semaphores, and did not block, so to maintain same behavior,
+-         * defer blocking on the VkFence. */
+-        if (vkd3d_native_sync_handle_is_valid(chain->present_request_done_event))
+-            vkd3d_native_sync_handle_signal(chain->present_request_done_event);
+-    }
+-
+ #ifdef VKD3D_ENABLE_BREADCRUMBS
+     vkd3d_breadcrumb_tracer_update_barrier_hashes(&chain->queue->device->breadcrumb_tracer);
+ #endif
+@@ -2739,23 +3170,235 @@ static void dxgi_vk_swap_chain_present_callback(void *chain_)
+ #endif
+ }
+ 
+-static void dxgi_vk_swap_chain_update_frame_statistics(struct dxgi_vk_swap_chain *chain, uint64_t present_count)
++static void dxgi_vk_swap_chain_update_past_presentation(struct dxgi_vk_swap_chain *chain,
++        uint64_t present_id, uint64_t time, VkTimeDomainKHR time_domain, uint64_t time_domain_id,
++        uint64_t time_domain_counter)
++{
++    uint64_t present_count = UINT64_MAX;
++    uint64_t calibration[2];
++    bool valid_time_domain;
++    unsigned int i;
++    int64_t delta;
++
++    if (present_id)
++    {
++        for (i = 0; i < chain->wait_thread.id_correlation_count; i++)
++        {
++            if (chain->wait_thread.id_correlation[i].present_id == present_id)
++            {
++                present_count = chain->wait_thread.id_correlation[i].present_count;
++                chain->wait_thread.id_correlation[i] =
++                        chain->wait_thread.id_correlation[--chain->wait_thread.id_correlation_count];
++                break;
++            }
++        }
++    }
++
++    /* With latest spec update, we're allowed to calibrate timestamps here.
++     * Only recalibrate timestamps as an emergency if we don't know about a spurious new domain ID. */
++    pthread_mutex_lock(&chain->timing.lock);
++
++    if (present_count != UINT64_MAX)
++    {
++        chain->timing.feedback.present_time = time;
++        chain->timing.feedback.present_count = present_count;
++
++        /* This will generally match the domain ID that we passed into QueuePresentKHR,
++         * but it doesn't necessarily have to. The new times are in terms of that domain ID
++         * and the QueuePresentKHR thread will repoll the time domains as needed. */
++        chain->timing.feedback.present_time_domain_id = time_domain_id;
++    }
++    else
++    {
++        if (present_id != 0)
++        {
++            FIXME("Could not correlate present ID with present count.\n");
++        }
++        else
++        {
++            /* If we're doing IMMEDIATE, we drop the use of present timing.
++             * Wait until we re-latch to actual FIFO. */
++            chain->timing.feedback.present_time = 0;
++            chain->timing.feedback.present_count = 0;
++            chain->timing.feedback.present_time_domain_id = 0;
++        }
++
++        goto unlock;
++    }
++
++    valid_time_domain = time_domain_counter == chain->timing.time_domain_update_count;
++    if (!valid_time_domain)
++        FIXME_ONCE("Time domain for feedback is not valid, cannot get accurate timestamp.\n");
++
++    for (i = 0; i < chain->timing.time_domains_count; i++)
++    {
++        if (chain->timing.time_domain_ids[i] == time_domain_id && chain->timing.time_domains[i] == time_domain)
++        {
++            /* This can happen. */
++            if (time == 0)
++            {
++                FIXME_ONCE("Proper time is not returned for presentation time query.\n");
++                goto unlock;
++            }
++
++            memcpy(calibration, &chain->timing.calibration[i], sizeof(calibration));
++            break;
++        }
++    }
++
++    if (i == chain->timing.time_domains_count)
++    {
++        if (!dxgi_vk_swap_chain_poll_single_calibration(chain, time_domain, time_domain_id, calibration))
++        {
++            FIXME_ONCE("Failed fallback calibration.\n");
++            goto unlock;
++        }
++    }
++
++    delta = (int64_t)time - (int64_t)chain->timing.calibration[i][1];
++
++#ifdef _WIN32
++    {
++        LARGE_INTEGER li;
++        QueryPerformanceFrequency(&li);
++        delta = (int64_t)((double)delta * ((double)li.QuadPart / 1e9));
++    }
++#endif
++
++    time = chain->timing.calibration[i][0] + delta;
++
++    if (present_count > chain->frame_statistics.count)
++    {
++        /* GetPastPresentationTime is by default in-order with QueuePresentKHR calls,
++         * but if we have committed to a present count due to fallbacks or similar,
++         * don't override it. */
++        spinlock_acquire(&chain->frame_statistics.lock);
++        chain->frame_statistics.count = present_count;
++        chain->frame_statistics.time = max(chain->frame_statistics.time, time);
++        spinlock_release(&chain->frame_statistics.lock);
++    }
++
++unlock:
++    pthread_mutex_unlock(&chain->timing.lock);
++}
++
++static void dxgi_vk_swap_chain_poll_past_presentation(struct dxgi_vk_swap_chain *chain)
++{
++    VkPastPresentationTimingEXT timings[DXGI_MAX_SWAP_CHAIN_BUFFERS];
++    VkPresentStageTimeEXT times[DXGI_MAX_SWAP_CHAIN_BUFFERS];
++    const struct vkd3d_vk_device_procs *vk_procs;
++    VkPastPresentationTimingPropertiesEXT props;
++    VkPastPresentationTimingInfoEXT timing_info;
++    struct d3d12_device *device;
++    bool request_props_repoll;
++    VkResult vr;
++    uint32_t i;
++
++    device = chain->queue->device;
++    vk_procs = &device->vk_procs;
++
++    memset(&timing_info, 0, sizeof(timing_info));
++    timing_info.sType = VK_STRUCTURE_TYPE_PAST_PRESENTATION_TIMING_INFO_EXT;
++    timing_info.swapchain = chain->present.vk_swapchain;
++
++    memset(&props, 0, sizeof(props));
++    props.sType = VK_STRUCTURE_TYPE_PAST_PRESENTATION_TIMING_PROPERTIES_EXT;
++    props.presentationTimingCount = ARRAY_SIZE(timings);
++    props.pPresentationTimings = timings;
++
++    for (i = 0; i < ARRAY_SIZE(timings); i++)
++    {
++        timings[i].sType = VK_STRUCTURE_TYPE_PAST_PRESENTATION_TIMING_EXT;
++        timings[i].pNext = NULL;
++
++        /* We only request feedback for a single stage. */
++        timings[i].presentStageCount = 1;
++        timings[i].pPresentStages = &times[i];
++    }
++
++    vr = VK_CALL(vkGetPastPresentationTimingEXT(device->vk_device, &timing_info, &props));
++    if (vr < 0)
++        return;
++
++    request_props_repoll = (props.timeDomainsCounter != 0 || props.timingPropertiesCounter != 0) &&
++            (props.timeDomainsCounter != chain->wait_thread.timing_domain_counter ||
++             props.timingPropertiesCounter != chain->wait_thread.timing_property_counter);
++
++    if (request_props_repoll)
++    {
++        chain->wait_thread.timing_domain_counter = props.timeDomainsCounter;
++        chain->wait_thread.timing_property_counter = props.timingPropertiesCounter;
++        vkd3d_atomic_uint32_store_explicit(&chain->timing.need_properties_repoll_atomic, 1, vkd3d_memory_order_release);
++    }
++
++    for (i = 0; i < props.presentationTimingCount; i++)
++    {
++        if (!timings[i].reportComplete)
++        {
++            /* This really shouldn't happen. */
++            ERR("Implementation bug, report is not marked complete.\n");
++            continue;
++        }
++
++        if (!chain->present.timing_relative && timings[i].targetTime)
++        {
++            int64_t error_ns = times[i].time - timings[i].targetTime;
++            if (chain->debug_latency)
++                INFO("Absolute timing error: %.3f ms.\n", (double)error_ns * 1e-6);
++
++            /* Observed on the first NV beta driver with present timing. Got fixed. */
++            if (error_ns < -10000000)
++                FIXME_ONCE("Driver bug, targetTime reported is way early.\n");
++        }
++
++        if (times[i].stage != chain->timing.present_stage)
++        {
++            /* This really shouldn't happen. */
++            FIXME("Present stage received is different from requested stage.\n");
++            continue;
++        }
++
++        dxgi_vk_swap_chain_update_past_presentation(chain,
++                timings[i].presentId, times[i].time, timings[i].timeDomain, timings[i].timeDomainId,
++                props.timeDomainsCounter);
++    }
++}
++
++static void dxgi_vk_swap_chain_update_frame_statistics(struct dxgi_vk_swap_chain *chain,
++        uint64_t present_count, uint64_t present_id)
+ {
+     uint64_t time;
+ 
++    if (chain->present.timing)
++    {
++        dxgi_vk_swap_chain_poll_past_presentation(chain);
++        if (chain->frame_statistics.count < present_count && present_id)
++        {
++            /* Vulkan spec does not guarantee this, but it's unclear if we are allowed to
++             * skip or arbitrarily delay reports in DXGI.
++             * The implementations we have tested support this guarantee, however.
++             * We can probably improve this situation if need be. */
++            FIXME_ONCE("Implementation does not seem to support immediate reports of frame statistics.\n");
++        }
++    }
++
++    if (chain->frame_statistics.count < present_count)
++    {
++        /* Fallback to sampling on CPU if we didn't get the actual timestamp. */
+ #ifdef _WIN32
+-    /* DXGI returns the raw QPC value */
+-    LARGE_INTEGER li;
+-    QueryPerformanceCounter(&li);
+-    time = li.QuadPart;
++        /* DXGI returns the raw QPC value */
++        LARGE_INTEGER li;
++        QueryPerformanceCounter(&li);
++        time = li.QuadPart;
+ #else
+-    time = vkd3d_get_current_time_ns();
++        time = vkd3d_get_current_time_ns();
+ #endif
+ 
+-    spinlock_acquire(&chain->frame_statistics.lock);
+-    chain->frame_statistics.count = present_count;
+-    chain->frame_statistics.time = time;
+-    spinlock_release(&chain->frame_statistics.lock);
++        spinlock_acquire(&chain->frame_statistics.lock);
++        chain->frame_statistics.count = present_count;
++        chain->frame_statistics.time = max(chain->frame_statistics.time, time);
++        spinlock_release(&chain->frame_statistics.lock);
++    }
+ }
+ 
+ static void dxgi_vk_swap_chain_platform_sleep_for_ns(struct platform_sleep_state *sleep_state, uint64_t duration_ns)
+@@ -2807,7 +3450,7 @@ static void dxgi_vk_swap_chain_delay_next_frame(struct dxgi_vk_swap_chain *chain
+         if (!chain->frame_rate_limit.enable)
+         {
+             /* Ignore app-provided frame latency since it may not be reliable */
+-            if (chain->queue->device->device_info.present_wait_features.presentWait)
++            if (chain->present.wait)
+                 frame_latency = chain->frame_latency_internal;
+ 
+             frame_count = chain->frame_rate_limit.heuristic_frame_count;
+@@ -2924,8 +3567,21 @@ static void *dxgi_vk_swap_chain_wait_worker(void *chain_)
+             if (!chain->wait_thread.skip_waits)
+             {
+                 /* We don't really care if we observed OUT_OF_DATE or something here. */
+-                VK_CALL(vkWaitForPresentKHR(chain->queue->device->vk_device, chain->present.vk_swapchain,
+-                        entry.id, UINT64_MAX));
++                if (chain->present.wait2)
++                {
++                    VkPresentWait2InfoKHR wait_info;
++                    memset(&wait_info, 0, sizeof(wait_info));
++                    wait_info.sType = VK_STRUCTURE_TYPE_PRESENT_WAIT_2_INFO_KHR;
++                    wait_info.presentId = entry.id;
++                    wait_info.timeout = UINT64_MAX;
++                    VK_CALL(vkWaitForPresent2KHR(chain->queue->device->vk_device, chain->present.vk_swapchain,
++                            &wait_info));
++                }
++                else
++                {
++                    VK_CALL(vkWaitForPresentKHR(chain->queue->device->vk_device, chain->present.vk_swapchain,
++                            entry.id, UINT64_MAX));
++                }
+             }
+             vkd3d_queue_timeline_trace_complete_present_wait(timeline_trace, cookie);
+         }
+@@ -2936,10 +3592,25 @@ static void *dxgi_vk_swap_chain_wait_worker(void *chain_)
+ 
+         end_frame_time_ns = vkd3d_get_current_time_ns();
+ 
+-        if (chain->wait_thread.supports_present_wait)
++        if (chain->present.wait && !entry.present_timing_enabled)
+             dxgi_vk_swap_chain_delay_next_frame(chain, end_frame_time_ns);
+ 
+-        dxgi_vk_swap_chain_update_frame_statistics(chain, entry.present_count);
++        /* If we're rendering with IMMEDIATE, we ignore present timing. */
++        if (chain->present.timing && entry.id)
++        {
++            if (chain->wait_thread.id_correlation_count == ARRAY_SIZE(chain->wait_thread.id_correlation))
++            {
++                /* Shouldn't really happen, but if it does for whatever reason, just nuke the list. */
++                FIXME("ID correlation list filled. Flushing ... Are present timing requests not properly returned by implementation?\n");
++                chain->wait_thread.id_correlation_count = 0;
++            }
++
++            chain->wait_thread.id_correlation[chain->wait_thread.id_correlation_count].present_count = entry.present_count;
++            chain->wait_thread.id_correlation[chain->wait_thread.id_correlation_count].present_id = entry.id;
++            chain->wait_thread.id_correlation_count++;
++        }
++
++        dxgi_vk_swap_chain_update_frame_statistics(chain, entry.present_count, entry.id);
+ 
+         if (vkd3d_native_sync_handle_is_valid(chain->frame_latency_event))
+         {
+@@ -3000,13 +3671,8 @@ static HRESULT dxgi_vk_swap_chain_init_waiter_thread(struct dxgi_vk_swap_chain *
+         return E_OUTOFMEMORY;
+     }
+ 
+-    if ((chain->wait_thread.supports_present_wait = chain->queue->device->device_info.present_wait_features.presentWait))
+-    {
+-        if (vkd3d_get_env_var("VKD3D_SWAPCHAIN_DEBUG_LATENCY", env, sizeof(env)) && strcmp(env, "1") == 0)
+-            chain->debug_latency = true;
+-
+-        INFO("Enabling present wait path for frame latency.\n");
+-    }
++    if (vkd3d_get_env_var("VKD3D_SWAPCHAIN_DEBUG_LATENCY", env, sizeof(env)) && strcmp(env, "1") == 0)
++        chain->debug_latency = true;
+ 
+     return S_OK;
+ }
+@@ -3175,14 +3841,14 @@ static HRESULT dxgi_vk_swap_chain_init(struct dxgi_vk_swap_chain *chain, IDXGIVk
+     if (FAILED(hr = dxgi_vk_swap_chain_reallocate_user_buffers(chain)))
+         goto cleanup_common;
+ 
+-    if (FAILED(hr = dxgi_vk_swap_chain_init_sync_objects(chain)))
++    if (FAILED(hr = dxgi_vk_swap_chain_create_surface(chain, pFactory)))
+         goto cleanup_common;
+ 
+-    if (FAILED(hr = dxgi_vk_swap_chain_create_surface(chain, pFactory)))
+-        goto cleanup_sync_objects;
++    if (FAILED(hr = dxgi_vk_swap_chain_init_sync_objects(chain)))
++        goto cleanup_surface;
+ 
+     if (FAILED(hr = dxgi_vk_swap_chain_init_waiter_thread(chain)))
+-        goto cleanup_surface;
++        goto cleanup_sync_objects;
+ 
+     if (FAILED(hr = dxgi_vk_swap_chain_init_low_latency(chain)))
+         goto cleanup_waiter_thread;
+@@ -3197,10 +3863,10 @@ cleanup_low_latency:
+     dxgi_vk_swap_chain_cleanup_low_latency(chain);
+ cleanup_waiter_thread:
+     dxgi_vk_swap_chain_cleanup_waiter_thread(chain);
+-cleanup_surface:
+-    dxgi_vk_swap_chain_cleanup_surface(chain);
+ cleanup_sync_objects:
+     dxgi_vk_swap_chain_cleanup_sync_objects(chain);
++cleanup_surface:
++    dxgi_vk_swap_chain_cleanup_surface(chain);
+ cleanup_common:
+     dxgi_vk_swap_chain_cleanup_common(chain);
+     return hr;
+diff --git a/libs/vkd3d/vkd3d_private.h b/libs/vkd3d/vkd3d_private.h
+index 1186e279..eb7884b7 100644
+--- a/libs/vkd3d/vkd3d_private.h
++++ b/libs/vkd3d/vkd3d_private.h
+@@ -136,6 +136,8 @@ struct vkd3d_vulkan_info
+     bool KHR_fragment_shader_barycentric;
+     bool KHR_external_memory_win32;
+     bool KHR_external_semaphore_win32;
++    bool KHR_present_wait2;
++    bool KHR_present_id2;
+     bool KHR_present_wait;
+     bool KHR_present_id;
+     bool KHR_maintenance5;
+@@ -187,6 +189,7 @@ struct vkd3d_vulkan_info
+     bool EXT_zero_initialize_device_memory;
+     bool EXT_opacity_micromap;
+     bool EXT_shader_float8;
++    bool EXT_present_timing;
+     /* AMD device extensions */
+     bool AMD_buffer_marker;
+     bool AMD_device_coherent_memory;
+@@ -216,6 +219,8 @@ struct vkd3d_vulkan_info
+ 
+     /* Optional extensions which are enabled externally as optional extensions
+      * if swapchain/surface extensions are enabled. */
++    bool KHR_surface_maintenance1;
++    bool KHR_swapchain_maintenance1;
+     bool EXT_surface_maintenance1;
+     bool EXT_swapchain_maintenance1;
+ 
+@@ -5047,7 +5052,7 @@ struct vkd3d_physical_device_info
+     VkPhysicalDeviceLineRasterizationFeaturesEXT line_rasterization_features;
+     VkPhysicalDeviceImageCompressionControlFeaturesEXT image_compression_control_features;
+     VkPhysicalDeviceFaultFeaturesEXT fault_features;
+-    VkPhysicalDeviceSwapchainMaintenance1FeaturesEXT swapchain_maintenance1_features;
++    VkPhysicalDeviceSwapchainMaintenance1FeaturesKHR swapchain_maintenance1_features;
+     VkPhysicalDeviceShaderMaximalReconvergenceFeaturesKHR shader_maximal_reconvergence_features;
+     VkPhysicalDeviceShaderQuadControlFeaturesKHR shader_quad_control_features;
+     VkPhysicalDeviceRawAccessChainsFeaturesNV raw_access_chains_nv;
+@@ -5065,6 +5070,9 @@ struct vkd3d_physical_device_info
+     VkPhysicalDeviceUnifiedImageLayoutsFeaturesKHR unified_image_layouts_features;
+     VkPhysicalDeviceShaderMixedFloatDotProductFeaturesVALVE shader_mixed_float_dot_product_features;
+     VkPhysicalDevicePresentModeFifoLatestReadyFeaturesKHR present_mode_fifo_latest_ready_features;
++    VkPhysicalDevicePresentId2FeaturesKHR present_id2_features;
++    VkPhysicalDevicePresentWait2FeaturesKHR present_wait2_features;
++    VkPhysicalDevicePresentTimingFeaturesEXT present_timing_features;
+ 
+     VkPhysicalDeviceFeatures2 features2;
+ 
+diff --git a/libs/vkd3d/vulkan_procs.h b/libs/vkd3d/vulkan_procs.h
+index db47bad1..1e33c171 100644
+--- a/libs/vkd3d/vulkan_procs.h
++++ b/libs/vkd3d/vulkan_procs.h
+@@ -355,6 +355,9 @@ VK_DEVICE_EXT_PFN(vkGetShaderModuleIdentifierEXT)
+ /* VK_KHR_present_wait */
+ VK_DEVICE_EXT_PFN(vkWaitForPresentKHR)
+ 
++/* VK_KHR_present_wait2 */
++VK_DEVICE_EXT_PFN(vkWaitForPresent2KHR)
++
+ /* VK_EXT_descriptor_buffer */
+ VK_DEVICE_EXT_PFN(vkGetDescriptorEXT)
+ VK_DEVICE_EXT_PFN(vkCmdBindDescriptorBuffersEXT)
+@@ -394,6 +397,12 @@ VK_DEVICE_EXT_PFN(vkCmdCopyMicromapEXT)
+ /* VK_AMD_anti_lag */
+ VK_DEVICE_EXT_PFN(vkAntiLagUpdateAMD)
+ 
++/* VK_EXT_present_timing */
++VK_DEVICE_EXT_PFN(vkGetPastPresentationTimingEXT)
++VK_DEVICE_EXT_PFN(vkGetSwapchainTimeDomainPropertiesEXT)
++VK_DEVICE_EXT_PFN(vkGetSwapchainTimingPropertiesEXT)
++VK_DEVICE_EXT_PFN(vkSetSwapchainPresentTimingQueueSizeEXT)
++
+ #undef VK_INSTANCE_PFN
+ #undef VK_INSTANCE_EXT_PFN
+ #undef VK_DEVICE_PFN
+-- 
+2.53.0
+
+
+From 5aa7e63b7a68d189a470e2ce94618dddc17c00d3 Mon Sep 17 00:00:00 2001
+From: Darin Morrison <darinmorrison@gmail.com>
+Date: Fri, 20 Mar 2026 13:48:00 -0600
+Subject: [PATCH 7/9] vkd3d: Refactor present id/wait pacing decision logic
+
+Clarifies the logic around attaching present IDs versus waiting on them.
+
+The calls to vkWaitForPresentKHR are gated on appropriateness for the
+selected present mode.
+
+When low latency modes are engaged, or when the present mode is
+FIFO_LATEST_READY or similar, present IDs are useful for bookkeeping the
+present pacing but do not provide meaningful backpressure.
+
+This is in contrast to capped modes like FIFO and FIFO Relaxed where
+waiting on the present IDs does provide meaningful backpressure.
+
+(cherry picked from commit 95498bf571cd87d3d85a5cc7e3f3c5edbaf50f0b)
+Signed-off-by: Darin Morrison <darinmorrison@gmail.com>
+---
+ libs/vkd3d/swapchain.c | 80 +++++++++++++++++++++++++++---------------
+ 1 file changed, 51 insertions(+), 29 deletions(-)
+
+diff --git a/libs/vkd3d/swapchain.c b/libs/vkd3d/swapchain.c
+index 8c866e05..956ce87f 100644
+--- a/libs/vkd3d/swapchain.c
++++ b/libs/vkd3d/swapchain.c
+@@ -53,17 +53,6 @@ static inline bool vkd3d_swapchain_present_mode_parse(const char *string, VkPres
+     return false;
+ }
+ 
+-static inline bool present_mode_pacing_should_wait(VkPresentModeKHR present_mode)
+-{
+-    /* FIFO_LATEST_READY is intentionally excluded. Unlike FIFO and FIFO_RELAXED,
+-     * it does not block on Vsync boundaries and present-wait would not provide
+-     * meaningful backpressure. When VK_EXT_present_timing becomes available,
+-     * VkPresentTimingInfoEXT.targetTime would be the appropriate pacing mechanism.
+-     */
+-    return present_mode == VK_PRESENT_MODE_FIFO_KHR ||
+-           present_mode == VK_PRESENT_MODE_FIFO_RELAXED_KHR;
+-}
+-
+ static inline struct dxgi_vk_swap_chain_factory *impl_from_IDXGIVkSwapChainFactory(IDXGIVkSwapChainFactory *iface)
+ {
+     return CONTAINING_RECORD(iface, struct dxgi_vk_swap_chain_factory, IDXGIVkSwapChainFactory_iface);
+@@ -354,6 +343,46 @@ struct dxgi_vk_swap_chain
+     } wait_thread;
+ };
+ 
++static bool dxgi_vk_swap_chain_pacing_should_wait(struct dxgi_vk_swap_chain *chain)
++{
++    /* FIFO_LATEST_READY is intentionally excluded. Unlike FIFO and FIFO_RELAXED,
++     * it does not block on Vsync boundaries and present-wait would not provide
++     * meaningful backpressure.
++     */
++    bool mode_supports_wait =
++            chain->present.selected_present_mode == VK_PRESENT_MODE_FIFO_KHR ||
++            chain->present.selected_present_mode == VK_PRESENT_MODE_FIFO_RELAXED_KHR;
++    return chain->present.wait &&
++            mode_supports_wait;
++}
++
++static bool dxgi_vk_swap_chain_pacing_should_present_id(struct dxgi_vk_swap_chain *chain)
++{
++    return chain->present.low_latency_state.mode ||
++            chain->present.timing ||
++            dxgi_vk_swap_chain_pacing_should_wait(chain);
++}
++
++static bool dxgi_vk_swap_chain_pacing_should_target_time(struct dxgi_vk_swap_chain *chain, uint64_t present_count, uint64_t refresh_delta)
++{
++    bool mode_supports_target_time =
++            chain->present.selected_present_mode == VK_PRESENT_MODE_FIFO_KHR ||
++            chain->present.selected_present_mode == VK_PRESENT_MODE_FIFO_RELAXED_KHR ||
++            chain->present.selected_present_mode == VK_PRESENT_MODE_FIFO_LATEST_READY_KHR;
++    bool feedback_counts_presents =
++            chain->timing.feedback.present_count < present_count &&
++            chain->timing.feedback.present_count;
++    bool meaningful_refresh_duration =
++            chain->timing.refresh_duration >= refresh_delta;
++    bool chain_supports_target_time =
++            chain->present.timing_absolute ||
++            chain->present.timing_relative;
++    return mode_supports_target_time &&
++            feedback_counts_presents &&
++            meaningful_refresh_duration &&
++            chain_supports_target_time;
++}
++
+ static void dxgi_vk_swap_chain_drain_internal_blit_semaphore(struct dxgi_vk_swap_chain *chain, uint64_t value);
+ 
+ static void dxgi_vk_swap_chain_wait_acquire_semaphore(struct dxgi_vk_swap_chain *chain,
+@@ -2772,13 +2801,7 @@ static bool dxgi_vk_swap_chain_setup_present_timing_request(
+ 
+ #define DELTA_NS 500000
+ 
+-    /* Present timing targets only work on FIFO modes.
+-     * Don't bother trying to get timing feedback for non-FIFO modes. */
+-    use_present_timing_target = chain->request.swap_interval > 0 &&
+-            present_count > chain->timing.feedback.present_count &&
+-            chain->timing.feedback.present_count &&
+-            chain->timing.refresh_duration >= DELTA_NS &&
+-            (chain->present.timing_absolute || chain->present.timing_relative);
++    use_present_timing_target = dxgi_vk_swap_chain_pacing_should_target_time(chain, present_count, DELTA_NS);
+ 
+     if (use_present_timing_target && frame_limiter_ns > chain->timing.refresh_duration)
+     {
+@@ -2893,7 +2916,6 @@ static void dxgi_vk_swap_chain_present_iteration(struct dxgi_vk_swap_chain *chai
+     VkPresentId2KHR present_id2;
+     VkPresentIdKHR present_id;
+     uint32_t swapchain_index;
+-    bool pacing_should_wait;
+     bool use_present_id;
+     VkResult vk_result;
+     VkQueue vk_queue;
+@@ -2974,14 +2996,14 @@ static void dxgi_vk_swap_chain_present_iteration(struct dxgi_vk_swap_chain *chai
+         }
+     }
+ 
+-    pacing_should_wait = present_mode_pacing_should_wait(chain->present.selected_present_mode) ||
+-        chain->present.low_latency_state.mode;
+-
+-    /* Only bother with present-wait path for capped swapchains like FIFO and FIFO Relaxed.
+-     * Uncapped swapchains will pump their frame latency handles through the fallback path of blit command being done.
+-     * Especially on Xwayland, the present ID is updated when images actually hit on-screen due to MAILBOX behavior.
+-     * This would unnecessarily stall our progress. */
+-    if (chain->present.wait && !chain->present.present_id_valid && pacing_should_wait)
++    /* Attach a present ID when required for backpressure (FIFO, FIFO_RELAXED) or
++     * for low latency pacing. The actual vkWaitForPresentKHR call is separately
++     * gated on pacing_should_wait in the wait thread.
++     *
++     * On Xwayland, present IDs are updated at scan-out rather than queue submission
++     * due to MAILBOX behavior, so uncapped modes without low latency pacing should
++     * not attach a present ID since it would unnecessarily stall progress. */
++    if (chain->present.wait && !chain->present.present_id_valid && dxgi_vk_swap_chain_pacing_should_present_id(chain))
+     {
+         minimum_present_id = chain->present.present_id + 1;
+         if (chain->present.low_latency_state.mode)
+@@ -3564,7 +3586,7 @@ static void *dxgi_vk_swap_chain_wait_worker(void *chain_)
+         {
+             cookie = vkd3d_queue_timeline_trace_register_present_wait(timeline_trace, entry.id);
+             /* In skip wait mode we just need to make sure that we signal latency fences properly. */
+-            if (!chain->wait_thread.skip_waits)
++            if (!chain->wait_thread.skip_waits && dxgi_vk_swap_chain_pacing_should_wait(chain))
+             {
+                 /* We don't really care if we observed OUT_OF_DATE or something here. */
+                 if (chain->present.wait2)
+@@ -3592,7 +3614,7 @@ static void *dxgi_vk_swap_chain_wait_worker(void *chain_)
+ 
+         end_frame_time_ns = vkd3d_get_current_time_ns();
+ 
+-        if (chain->present.wait && !entry.present_timing_enabled)
++        if (!entry.present_timing_enabled && dxgi_vk_swap_chain_pacing_should_wait(chain))
+             dxgi_vk_swap_chain_delay_next_frame(chain, end_frame_time_ns);
+ 
+         /* If we're rendering with IMMEDIATE, we ignore present timing. */
+-- 
+2.53.0
+
+
+From 555282aa09fd75ffb0024bd419570436fd1786cf Mon Sep 17 00:00:00 2001
+From: Darin Morrison <darinmorrison@gmail.com>
+Date: Sun, 22 Mar 2026 22:08:01 -0600
+Subject: [PATCH 8/9] vkd3d: Fix present timing properties never reporting
+ valid refresh duration.
+
+On NVIDIA drivers, timing properties are only available in the present
+context, so pre-present polling always returned zeros. Move the properties
+poll to after vkQueuePresentKHR unconditionally, which also naturally
+handles refresh rate changes in both FRR and VRR modes.
+
+This commit also distinguishes success results (VK_NOT_READY or
+VK_SUCCESS) from error results in when polling time properties and
+logs a warning on error.
+
+(cherry picked from commit 72fb9bb5c555095468763123cf53f256fb4edec2)
+Signed-off-by: Darin Morrison <darinmorrison@gmail.com>
+---
+ libs/vkd3d/swapchain.c | 40 +++++++++++++++++++++++++++++-----------
+ 1 file changed, 29 insertions(+), 11 deletions(-)
+
+diff --git a/libs/vkd3d/swapchain.c b/libs/vkd3d/swapchain.c
+index 956ce87f..891371ef 100644
+--- a/libs/vkd3d/swapchain.c
++++ b/libs/vkd3d/swapchain.c
+@@ -1984,19 +1984,28 @@ static void dxgi_vk_swap_chain_poll_time_properties(struct dxgi_vk_swap_chain *c
+ {
+     const struct vkd3d_vk_device_procs *vk_procs = &chain->queue->device->vk_procs;
+     VkSwapchainTimingPropertiesEXT props;
++    VkResult vr;
+ 
+     memset(&props, 0, sizeof(props));
+     props.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_TIMING_PROPERTIES_EXT;
+-    if (VK_CALL(vkGetSwapchainTimingPropertiesEXT(chain->queue->device->vk_device,
+-            chain->present.vk_swapchain, &props, &chain->timing.time_properties_update_count)) != VK_SUCCESS)
+-    {
+-        /* This is expected to happen for the first few frames when running on e.g. Wayland. */
+ 
+-        chain->timing.refresh_duration = 0;
+-        chain->timing.refresh_interval = 0;
+-        /* Keep repolling until we get something useful. */
++    chain->timing.refresh_duration = 0;
++    chain->timing.refresh_interval = 0;
++
++    vr = VK_CALL(vkGetSwapchainTimingPropertiesEXT(chain->queue->device->vk_device,
++            chain->present.vk_swapchain, &props, &chain->timing.time_properties_update_count));
++
++    /* This is expected to happen for the first few frames when running on e.g. Wayland. */
++    if (vr == VK_NOT_READY || (vr == VK_SUCCESS && !props.refreshDuration))
++    {
++        /* Signal a repoll so that time domains and calibration data are also
++         * refreshed in update_present_timing, as they are likely stale when
++         * timing properties are not yet available. */
+         vkd3d_atomic_uint32_store_explicit(&chain->timing.need_properties_repoll_atomic, 1, vkd3d_memory_order_relaxed);
+         return;
++    } else if (vr != VK_SUCCESS) {
++        WARN("Failed to query swapchain timing properties.");
++        return;
+     }
+ 
+     chain->timing.refresh_duration = props.refreshDuration;
+@@ -2292,7 +2301,12 @@ static void dxgi_vk_swap_chain_recreate_swapchain_in_present_task(struct dxgi_vk
+         chain->timing.feedback.present_count = 0;
+         chain->timing.feedback.present_time_domain_id = 0;
+ 
+-        dxgi_vk_swap_chain_poll_time_properties(chain);
++        /* Timing properties are not available until after a present, so just
++         * signal that a repoll is needed for time domains and calibration. */
++        chain->timing.refresh_duration = 0;
++        chain->timing.refresh_interval = 0;
++        vkd3d_atomic_uint32_store_explicit(&chain->timing.need_properties_repoll_atomic, 1, vkd3d_memory_order_relaxed);
++
+         dxgi_vk_swap_chain_poll_time_domains(chain);
+         dxgi_vk_swap_chain_poll_calibration(chain);
+ 
+@@ -3126,9 +3140,7 @@ static void dxgi_vk_swap_chain_update_present_timing(struct dxgi_vk_swap_chain *
+      * These calls are extern-sync, so we cannot do them on the thread easily. */
+     if (vkd3d_atomic_uint32_exchange_explicit(&chain->timing.need_properties_repoll_atomic, 0, vkd3d_memory_order_acquire))
+     {
+-        dxgi_vk_swap_chain_poll_time_properties(chain);
+-
+-        /* Waiter thread looks like time domains and calibration state. */
++        /* Waiter thread looks at time domains and calibration state. */
+         pthread_mutex_lock(&chain->timing.lock);
+         dxgi_vk_swap_chain_poll_time_domains(chain);
+         dxgi_vk_swap_chain_poll_calibration(chain);
+@@ -3172,6 +3184,12 @@ static void dxgi_vk_swap_chain_present_callback(void *chain_)
+      * Forward progress must be ensured, so if we cannot get anything on-screen in a reasonable amount of retries, ignore it. */
+     dxgi_vk_swap_chain_present_iteration(chain, next_present_count, 0);
+ 
++    /* Poll timing properties after present. Some drivers only provide up-to-date
++     * values in the present context (extern-sync). This should also handle changes
++     * to the refresh rate whether in FRR or VRR. */
++    if (chain->present.timing)
++        dxgi_vk_swap_chain_poll_time_properties(chain);
++
+     /* When this is signalled, lets main thread know that it's safe to free user buffers.
+      * Signal this just once on the outside since we might have retries, which complicates command buffer recycling. */
+     dxgi_vk_swap_chain_present_signal_blit_semaphore(chain, next_present_count);
+-- 
+2.53.0
+
+
+From e2dc06e7c9adeabb4c9194b77adccba403f5d358 Mon Sep 17 00:00:00 2001
+From: Darin Morrison <darinmorrison@gmail.com>
+Date: Sun, 22 Mar 2026 22:17:52 -0600
+Subject: [PATCH 9/9] vkd3d: Log targetTime when using latency debug.
+
+(cherry picked from commit e5eacfb529ddd7a97f0164055d6707c67fd9c5b7)
+Signed-off-by: Darin Morrison <darinmorrison@gmail.com>
+---
+ libs/vkd3d/swapchain.c | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/libs/vkd3d/swapchain.c b/libs/vkd3d/swapchain.c
+index 891371ef..19a7c95e 100644
+--- a/libs/vkd3d/swapchain.c
++++ b/libs/vkd3d/swapchain.c
+@@ -2915,6 +2915,10 @@ static bool dxgi_vk_swap_chain_setup_present_timing_request(
+     }
+ 
+     pthread_mutex_unlock(&chain->timing.lock);
++
++    if (chain->debug_latency && use_present_timing_target)
++        INFO("Presenting with targetTime: %"PRIu64".\n", timing_info->targetTime);
++
+     return use_present_timing_target;
+ }
+ 
+-- 
+2.53.0
+

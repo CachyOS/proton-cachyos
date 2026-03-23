@@ -1654,7 +1654,8 @@ $(eval $(call rules-meson,vkd3d-proton,x86_64,windows))
 $(eval $(call rules-meson,vkd3d-proton,aarch64,windows))
 $(eval $(call rules-meson,vkd3d-proton,arm64ec,windows))
 
-$(OBJ)/.vkd3d-proton-post-source:
+$(OBJ)/.vkd3d-proton-post-source: patches-source
+	find $(PATCHES_SRC)/vkd3d-proton/ -name "*.patch" | sort | xargs -n1 patch -d $(VKD3D_PROTON_SRC) -Np1 -i
 	sed -re 's#@VCS_TAG@#$(shell git -C $(SRCDIR)/vkd3d-proton describe --always --exclude=* --abbrev=15 --dirty=0)#' \
 	    $(SRCDIR)/vkd3d-proton/vkd3d_build.h.in > $(VKD3D_PROTON_SRC)/vkd3d_build.h.in
 	sed -re 's#@VCS_TAG@#$(shell git -C $(SRCDIR)/vkd3d-proton describe --always --tags --dirty=+)#' \
@@ -1703,7 +1704,8 @@ $(eval $(call rules-meson,vkd3d-bratan,x86_64,windows))
 $(eval $(call rules-meson,vkd3d-bratan,aarch64,windows))
 $(eval $(call rules-meson,vkd3d-bratan,arm64ec,windows))
 
-$(OBJ)/.vkd3d-bratan-post-source:
+$(OBJ)/.vkd3d-bratan-post-source: patches-source
+	find $(PATCHES_SRC)/vkd3d-bratan/ -name "*.patch" | sort | xargs -n1 patch -d $(VKD3D_BRATAN_SRC) -Np1 -i
 	sed -re 's#@VCS_TAG@#$(shell git -C $(SRCDIR)/vkd3d-bratan describe --always --exclude=* --abbrev=15 --dirty=0)#' \
 	    $(SRCDIR)/vkd3d-bratan/vkd3d_build.h.in > $(VKD3D_BRATAN_SRC)/vkd3d_build.h.in
 	sed -re 's#@VCS_TAG@#$(shell git -C $(SRCDIR)/vkd3d-bratan describe --always --tags --dirty=+)#' \
