@@ -1953,6 +1953,7 @@ class Session:
         self.check_environment("PROTON_USE_WAYLAND", "wayland")
         self.check_environment("PROTON_PREFER_SDL", "sdlinput")
         self.check_environment("PROTON_USE_SDL", "sdlinput")
+        self.check_environment("PROTON_NATIVE_AGS", "nativeags")
 
         if "nowmdecoration" in self.compat_config:
             self.env["WAYLANDDRV_SSD"] = "0"
@@ -2205,6 +2206,12 @@ class Session:
                     del self.env["SteamVirtualGamepadInfo"]
                 if "SDL_GAMECONTROLLER_ALLOW_STEAM_VIRTUAL_GAMEPAD" in self.env:
                     del self.env["SDL_GAMECONTROLLER_ALLOW_STEAM_VIRTUAL_GAMEPAD"]
+
+        if "nativeags" in self.compat_config:
+            self.dlloverrides["atiadlxx"] = "b"
+            self.dlloverrides["atidxx64"] = "b"
+            self.dlloverrides["amd_ags_x64"] = "n"
+            self.env["DXVK_NO_UE4_WORKAROUND"] = "1"
 
         if (os.environ.get("SteamGameId", 0) == "1183470"): # Imperiums: Greek Wars
             self.env.setdefault("WINE_MONO_HIDETYPES", "1")
