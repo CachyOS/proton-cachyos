@@ -1967,11 +1967,18 @@ class Session:
         self.check_environment("PROTON_DXVK_LOWLATENCY", "dxvklowlatency")
         self.check_environment("PROTON_VKD3D_LOWLATENCY", "vkd3dlowlatency")
         self.check_environment("PROTON_NO_WM_DECORATION", "nowmdecoration")
+        self.check_environment("PROTON_PREFER_SDL", "sdlinput")
         self.check_environment("PROTON_FSR4_INDICATOR", "fsr4hud")
         self.check_environment("PROTON_DLSS_INDICATOR", "dlsshud")
 
         if "nowmdecoration" in self.compat_config:
             self.env["WINE_NO_WM_DECORATION"] = "1"
+
+        if "sdlinput" in self.compat_config:
+            self.env["PROTON_DISABLE_HIDRAW"] = "1"
+            self.env["PROTON_NO_STEAMINPUT"] = "1"
+            if "SDL_GAMECONTROLLER_IGNORE_DEVICES" in self.env:
+                del self.env["SDL_GAMECONTROLLER_IGNORE_DEVICES"]
 
         if "dxvklowlatency" in self.compat_config:
             self.compat_config.add("dxvkllasync")
