@@ -1948,12 +1948,19 @@ class Session:
         self.check_environment("PROTON_NVIDIA_NVML", "nvml")
         self.check_environment("PROTON_NVIDIA_NVOPTIX", "nvoptix")
         self.check_environment("PROTON_HIDE_APU", "hideapu")
+        self.check_environment("PROTON_ENABLE_MEDIACONV", "mediaconv")
         self.check_environment("PROTON_NO_WM_DECORATION", "nowmdecoration")
         self.check_environment("PROTON_ENABLE_WAYLAND", "wayland")
         self.check_environment("PROTON_USE_WAYLAND", "wayland")
         self.check_environment("PROTON_PREFER_SDL", "sdlinput")
         self.check_environment("PROTON_USE_SDL", "sdlinput")
         self.check_environment("PROTON_NATIVE_AGS", "nativeags")
+
+        if "mediaconv" in self.compat_config:
+            self.env["PROTON_VIDEO_CONVERT"] = "1"
+            self.env["PROTON_AUDIO_CONVERT"] = "1"
+            self.env["PROTON_AUDIO_CONVERT_BIN"] = "1"
+            self.env["PROTON_DEMUX"] = "1"
 
         if "nowmdecoration" in self.compat_config:
             self.env["WAYLANDDRV_SSD"] = "0"
