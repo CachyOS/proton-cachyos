@@ -10,6 +10,9 @@
 [submodule "fonts/liberation-fonts"]
 	path = fonts/liberation-fonts
 	url = https://github.com/liberationfonts/liberation-fonts
+[submodule "steamrtdeps/libxml2"]
+	path = steamrtdeps/libxml2
+	url = https://github.com/GNOME/libxml2.git
 [submodule "steamrtdeps/libwebp"]
 	path = steamrtdeps/libwebp
 	url = https://github.com/webmproject/libwebp.git
