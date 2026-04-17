@@ -1262,7 +1262,7 @@ class CompatData:
                 use_nvenc = "nvenc" in g_session.compat_config and allow_nvidia_libs
                 use_nvcuda = ("nvcuda" in g_session.compat_config and allow_nvidia_libs) or use_nvenc or use_nvoptix
 
-                if use_nvcuda or use_nvenc or use_nvml or use_nvoptix:
+                if use_nvcuda or use_nvenc or use_nvoptix:
                     nvapi_path = "nvidia-libs/nvapi/"
                 else:
                     nvapi_path = "nvapi/"
@@ -1954,6 +1954,9 @@ class Session:
 
         #Custom options
         self.check_environment("PROTON_USE_WOW64", "wow64")
+        # Enable wine-nvml by default on Nvidia (experimental)
+        if utilities.is_driver_loaded({'nvidia'}):
+            self.compat_config.add("nvml")
         self.check_environment("PROTON_NVIDIA_LIBS", "nvidialibs")
         self.check_environment("PROTON_NVIDIA_LIBS_NO_32BIT", "nvidialibsno32")
         self.check_environment("PROTON_NVIDIA_NVCUDA", "nvcuda")
