@@ -31,6 +31,8 @@ i386-unix_CARGO_TARGET := i686-unknown-linux-gnu
 x86_64-unix_CARGO_TARGET := x86_64-unknown-linux-gnu
 aarch64-unix_CARGO_TARGET := aarch64-unknown-linux-gnu
 
+CARGO_RUSTFLAGS :=  $(foreach a,$(unix_ARCHS),CARGO_TARGET_$(call toupper,$($(a)-unix_CARGO_TARGET))_RUSTFLAGS="$($(a)_RUSTFLAGS)")
+
 i386-unix_CARGO_ARGS := --target $(i386-unix_CARGO_TARGET)
 x86_64-unix_CARGO_ARGS := --target $(x86_64-unix_CARGO_TARGET)
 aarch64-unix_CARGO_ARGS := --target $(aarch64-unix_CARGO_TARGET)
