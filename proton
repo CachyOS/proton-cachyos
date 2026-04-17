@@ -1255,14 +1255,26 @@ class CompatData:
                         tracked_files.write(dst + '\n')
                     self.create_symlink(self.prefix_dir + dst, g_proton.arch_pe_dir("wine/icu", True) + f + ".dll")
 
+                allow_nvidia_libs = os.path.isdir(g_proton.lib_dir + "wine/nvidia-libs")
+                disable_nvlibs32 = "nvidialibsno32" in g_session.compat_config or "wow64" in g_session.compat_config
+                use_nvoptix = "nvoptix" in g_session.compat_config and allow_nvidia_libs
+                use_nvml = ("nvml" in g_session.compat_config and allow_nvidia_libs) or use_nvoptix
+                use_nvenc = "nvenc" in g_session.compat_config and allow_nvidia_libs
+                use_nvcuda = ("nvcuda" in g_session.compat_config and allow_nvidia_libs) or use_nvenc or use_nvoptix
+
+                if use_nvcuda or use_nvenc or use_nvml or use_nvoptix:
+                    nvapi_path = "nvidia-libs/nvapi/"
+                else:
+                    nvapi_path = "nvapi/"
+
                 # If the user requested the NVAPI be available, copy it into place.
                 # If they didn't, clean up any stray nvapi DLLs.
                 if use_nvapi:
-                    try_copy(g_proton.arch_pe_dir("wine/nvapi", False) + "nvapi64.dll", "drive_c/windows/system32",
+                    try_copy(g_proton.arch_pe_dir("wine/" + nvapi_path, False) + "nvapi64.dll", "drive_c/windows/system32",
                             prefix=self.prefix_dir, track_file=tracked_files, link_debug=True)
-                    try_copy(g_proton.arch_pe_dir("wine/nvapi", False) + "nvofapi64.dll", "drive_c/windows/system32",
+                    try_copy(g_proton.arch_pe_dir("wine/" + nvapi_path, False) + "nvofapi64.dll", "drive_c/windows/system32",
                             prefix=self.prefix_dir, track_file=tracked_files, link_debug=True)
-                    try_copy(g_proton.arch_pe_dir("wine/nvapi", True) + "nvapi.dll", "drive_c/windows/syswow64",
+                    try_copy(g_proton.arch_pe_dir("wine/" + nvapi_path, True) + "nvapi.dll", "drive_c/windows/syswow64",
                             prefix=self.prefix_dir, track_file=tracked_files, link_debug=True)
                     g_session.dlloverrides["nvapi64"] = "n"
                     g_session.dlloverrides["nvofapi64"] = "n"
@@ -1279,6 +1291,80 @@ class CompatData:
                         os.unlink(nvapi32_dll)
                     if file_exists(nvapi32_dll + '.debug', follow_symlinks=False):
                         os.unlink(nvapi32_dll + '.debug')
+
+                if use_nvcuda and use_nvapi:
+                    try_copy(g_proton.arch_pe_dir("wine/nvidia-libs/nvcuda", False) + "nvcuda.dll.so", "drive_c/windows/system32/nvcuda.dll",
+                            prefix=self.prefix_dir, track_file=tracked_files, link_debug=True)
+                    g_session.dlloverrides["nvcuda"] = "n,b"
+                else:
+                    nvcuda64_dll = self.prefix_dir + "drive_c/windows/system32/nvcuda.dll"
+                    if file_exists(nvcuda64_dll, follow_symlinks=False):
+                        os.unlink(nvcuda64_dll)
+                    try_copy(g_proton.default_pfx_dir + "drive_c/windows/system32/nvcuda.dll", "drive_c/windows/system32",
+                            prefix=self.prefix_dir, track_file=tracked_files, link_debug=True)
+
+                if use_nvcuda and use_nvapi and not disable_nvlibs32:
+                    try_copy(g_proton.arch_pe_dir("wine/nvidia-libs/nvcuda", True) + "nvcuda.dll.so", "drive_c/windows/syswow64/nvcuda.dll",
+                             prefix=self.prefix_dir, track_file=tracked_files, link_debug=True)
+                    g_session.dlloverrides["nvcuda"] = "n,b"
+                else:
+                    nvcuda32_dll = self.prefix_dir + "drive_c/windows/syswow64/nvcuda.dll"
+                    if file_exists(nvcuda32_dll, follow_symlinks=False):
+                        os.unlink(nvcuda32_dll)
+                    try_copy(g_proton.default_pfx_dir + "drive_c/windows/syswow64/nvcuda.dll", "drive_c/windows/syswow64",
+                             prefix=self.prefix_dir, track_file=tracked_files, link_debug=True)
+
+                if use_nvenc and use_nvapi:
+                    try_copy(g_proton.arch_pe_dir("wine/nvidia-libs/nvenc", False) + "nvcuvid.dll.so", "drive_c/windows/system32/nvcuvid.dll",
+                            prefix=self.prefix_dir, track_file=tracked_files, link_debug=True)
+                    try_copy(g_proton.arch_pe_dir("wine/nvidia-libs/nvenc", False) + "nvencodeapi64.dll.so", "drive_c/windows/system32/nvencodeapi64.dll",
+                            prefix=self.prefix_dir, track_file=tracked_files, link_debug=True)
+                    g_session.dlloverrides["nvcuvid"] = "n,b"
+                    g_session.dlloverrides["nvencodeapi64"] = "n,b"
+                else:
+                    nvcuvid64_dll = self.prefix_dir + "drive_c/windows/system32/nvcuvid.dll"
+                    nvencodeapi64_dll = self.prefix_dir + "drive_c/windows/system32/nvencodeapi64.dll"
+                    if file_exists(nvcuvid64_dll, follow_symlinks=False):
+                        os.unlink(nvcuvid64_dll)
+                    if file_exists(nvencodeapi64_dll, follow_symlinks=False):
+                        os.unlink(nvencodeapi64_dll)
+
+                if use_nvenc and use_nvapi and not disable_nvlibs32:
+                    try_copy(g_proton.arch_pe_dir("wine/nvidia-libs/nvenc", True) + "nvcuvid.dll.so", "drive_c/windows/syswow64/nvcuvid.dll",
+                             prefix=self.prefix_dir, track_file=tracked_files, link_debug=True)
+                    try_copy(g_proton.arch_pe_dir("wine/nvidia-libs/nvenc", True) + "nvencodeapi.dll.so", "drive_c/windows/syswow64/nvencodeapi.dll",
+                             prefix=self.prefix_dir, track_file=tracked_files, link_debug=True)
+                    g_session.dlloverrides["nvcuvid"] = "n,b"
+                    g_session.dlloverrides["nvencodeapi"] = "n,b"
+                else:
+                    nvcuvid32_dll = self.prefix_dir + "drive_c/windows/syswow64/nvcuvid.dll"
+                    nvencodeapi32_dll = self.prefix_dir + "drive_c/windows/syswow64/nvencodeapi.dll"
+                    if file_exists(nvcuvid32_dll, follow_symlinks=False):
+                        os.unlink(nvcuvid32_dll)
+                    if file_exists(nvencodeapi32_dll, follow_symlinks=False):
+                        os.unlink(nvencodeapi32_dll)
+
+                if use_nvml and use_nvapi:
+                    prepend_to_env_str(g_session.env, "WINEDLLPATH", g_proton.lib_dir + "wine/nvidia-libs/nvml/wine", ":")
+                else:
+                    nvml64_dll = self.prefix_dir + "drive_c/windows/system32/nvml.dll"
+                    nvml32_dll = self.prefix_dir + "drive_c/windows/syswow64/nvml.dll"
+                    if file_exists(nvml64_dll, follow_symlinks=False):
+                        os.unlink(nvml64_dll)
+                    if file_exists(nvml32_dll, follow_symlinks=False):
+                        os.unlink(nvml32_dll)
+
+                if use_nvoptix and use_nvapi:
+                    try_copy(g_proton.arch_pe_dir("wine/nvidia-libs/nvoptix", False) + "nvoptix.dll.so", "drive_c/windows/system32/nvoptix.dll",
+                            prefix=self.prefix_dir, track_file=tracked_files, link_debug=True)
+                    g_session.dlloverrides["nvoptix"] = "n,b"
+                else:
+                    nvoptix64_dll = self.prefix_dir + "drive_c/windows/system32/nvoptix.dll"
+                    nvoptix32_dll = self.prefix_dir + "drive_c/windows/syswow64/nvoptix.dll"
+                    if file_exists(nvoptix64_dll, follow_symlinks=False):
+                        os.unlink(nvoptix64_dll)
+                    if file_exists(nvoptix32_dll, follow_symlinks=False):
+                        os.unlink(nvoptix32_dll)
 
                 # Try to detect known DLLs that ship with the NVIDIA Linux Driver
                 # and add them into the prefix
@@ -1868,6 +1954,12 @@ class Session:
 
         #Custom options
         self.check_environment("PROTON_USE_WOW64", "wow64")
+        self.check_environment("PROTON_NVIDIA_LIBS", "nvidialibs")
+        self.check_environment("PROTON_NVIDIA_LIBS_NO_32BIT", "nvidialibsno32")
+        self.check_environment("PROTON_NVIDIA_NVCUDA", "nvcuda")
+        self.check_environment("PROTON_NVIDIA_NVENC", "nvenc")
+        self.check_environment("PROTON_NVIDIA_NVML", "nvml")
+        self.check_environment("PROTON_NVIDIA_NVOPTIX", "nvoptix")
         self.check_environment("PROTON_D7VK_DDRAW", "d7vkddraw")
         self.check_environment("PROTON_DXVK_SAREK", "dxvksarek")
         self.check_environment("PROTON_DXVK_LOWLATENCY", "dxvklowlatency")
@@ -1884,6 +1976,12 @@ class Session:
             threads = os.cpu_count() - (2 if os.cpu_count() > 4 else (1 if os.cpu_count() > 2 else 0))
             append_to_env_str(self.env, "DXVK_CONFIG", f"dxvk.numCompilerThreads={threads}", ";")
             append_to_env_str(self.env, "DXVK_CONFIG", "dxvk.enableGraphicsPipelineLibrary=Auto", ";")
+
+        if "nvidialibs" in self.compat_config:
+            self.compat_config.add("nvcuda")
+            self.compat_config.add("nvenc")
+            self.compat_config.add("nvml")
+            self.compat_config.add("nvoptix")
 
         self.check_environment("DXVK_NVAPI_VKREFLEX", "vkreflex")
         if "vkreflex" in self.compat_config and "disablenvapi" not in self.compat_config and utilities.is_driver_loaded({'nvidia'}):
