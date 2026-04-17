@@ -109,6 +109,7 @@ ifeq ($(shell cc --version|grep 'clang'),)
 	i386_CFLAGS += -fvect-cost-model=cheap
 	x86_64_CFLAGS += -mno-avx -mno-avx2 -mno-avx512f
 	x86_64_CFLAGS += -fvect-cost-model=cheap
+	i386_SANITY_FLAGS := -mpreferred-stack-boundary=2
 else
 	# CLANG-specific flags
 	TOOLCHAIN_PREFIX := llvm-
@@ -117,6 +118,7 @@ else
 	i386_CFLAGS += -mno-avx -mno-avx2 -mno-avx512f
 	x86_64_CFLAGS += -mno-avx -mno-avx2 -mno-avx512f
 	# TODO: move this to a configure option
+	i386_SANITY_FLAGS := -mstack-alignment=4
 endif
 
 OBJCOPY := $(TOOLCHAIN_PREFIX)objcopy
@@ -1004,12 +1006,14 @@ DXVK_SOURCE_ARGS = \
 DXVK_arm64ec_CFLAGS = -marm64x
 DXVK_arm64ec_LDFLAGS = -marm64x
 
-DXVK_MESON_ARGS = --force-fallback-for=libdisplay-info
+DXVK_MESON_ARGS = -Db_ndebug=true --force-fallback-for=libdisplay-info
 DXVK_i386_MESON_ARGS = --bindir=$(DXVK_i386_DST)/lib/wine/dxvk/i386-windows
 DXVK_x86_64_MESON_ARGS = --bindir=$(DXVK_x86_64_DST)/lib/wine/dxvk/x86_64-windows
 DXVK_arm64ec_MESON_ARGS = --bindir=$(DXVK_arm64ec_DST)/lib/wine/dxvk/aarch64-windows
 DXVK_HOST_DEPENDS = glslang
 
+DXVK_i386_CFLAGS = -O3 -mno-avx $(i386_SANITY_FLAGS)
+DXVK_x86_64_CFLAGS = -O3 -mno-avx
 DXVK_CPPFLAGS = -msse -msse2
 DXVK_LDFLAGS = -static -static-libgcc -static-libstdc++
 
@@ -1031,10 +1035,13 @@ $(OBJ)/.dxvk-post-source:
 ## dxvk-nvapi
 ##
 
+DXVK_NVAPI_MESON_ARGS = -Db_ndebug=true
 DXVK_NVAPI_i386_MESON_ARGS = --bindir=$(DXVK_NVAPI_i386_DST)/lib/wine/nvapi/i386-windows
 DXVK_NVAPI_x86_64_MESON_ARGS = --bindir=$(DXVK_NVAPI_x86_64_DST)/lib/wine/nvapi/x86_64-windows
 DXVK_NVAPI_arm64ec_MESON_ARGS = --bindir=$(DXVK_NVAPI_arm64ec_DST)/lib/wine/nvapi/aarch64-windows
 
+DXVK_NVAPI_i386_CFLAGS = -O3 $(i386_SANITY_FLAGS)
+DXVK_NVAPI_x86_64_CFLAGS = -O3
 DXVK_NVAPI_CPPFLAGS = -msse -msse2
 DXVK_NVAPI_LDFLAGS = -static -static-libgcc -static-libstdc++
 
@@ -1098,6 +1105,9 @@ VKD3D_CFLAGS = -fno-lto
 VKD3D_LDFLAGS = -static-libgcc $(CROSSLDFLAGS)
 VKD3D_DEPENDS = vulkan-headers spirv-headers
 
+VKD3D_i386_CFLAGS = -O3 $(i386_SANITY_FLAGS)
+VKD3D_x86_64_CFLAGS = -O3
+
 VKD3D_i386_LIBDIR = $(VKD3D_i386_DST)/lib
 VKD3D_x86_64_LIBDIR = $(VKD3D_x86_64_DST)/lib
 
@@ -1147,6 +1157,7 @@ VKD3D_PROTON_SOURCE_ARGS = \
   --exclude vkd3d_build.h.in \
   --exclude vkd3d_version.h.in \
 
+VKD3D_PROTON_MESON_ARGS = -Db_ndebug=true
 VKD3D_PROTON_i386_MESON_ARGS = --bindir=$(VKD3D_PROTON_i386_DST)/lib/wine/vkd3d-proton/i386-windows
 VKD3D_PROTON_x86_64_MESON_ARGS = --bindir=$(VKD3D_PROTON_x86_64_DST)/lib/wine/vkd3d-proton/x86_64-windows
 VKD3D_PROTON_arm64ec_MESON_ARGS = --bindir=$(VKD3D_PROTON_arm64ec_DST)/lib/wine/vkd3d-proton/aarch64-windows
@@ -1159,6 +1170,8 @@ ifneq ($(UNSTRIPPED_BUILD),)
 	VKD3D_PROTON_MESON_ARGS = -Denable_trace=true
 endif
 
+VKD3D_PROTON_i386_CFLAGS = -O3 $(i386_SANITY_FLAGS)
+VKD3D_PROTON_x86_64_CFLAGS = -O3
 VKD3D_PROTON_CPPFLAGS = -msse -msse2
 VKD3D_PROTON_LDFLAGS = -static -static-libgcc -static-libstdc++
 
