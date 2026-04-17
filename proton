@@ -1217,6 +1217,17 @@ class CompatData:
                             prefix=self.prefix_dir, track_file=tracked_files, link_debug=True, optional=optional)
                     g_session.dlloverrides[f] = "n"
 
+                use_d7vk_ddraw = "d7vkddraw" in g_session.compat_config and os.path.isdir(g_proton.lib_dir + "wine/d7vk")
+                if use_d7vk_ddraw:
+                    try_copy(g_proton.default_pfx_dir + "drive_c/windows/syswow64/ddraw.dll", "drive_c/windows/syswow64/ddraw_.dll",
+                            prefix=self.prefix_dir, track_file=tracked_files, link_debug=True)
+                    try_copy(g_proton.arch_pe_dir("wine/d7vk", True) + "ddraw.dll", "drive_c/windows/syswow64",
+                            prefix=self.prefix_dir, track_file=tracked_files, link_debug=True, optional=optional)
+                    g_session.dlloverrides["ddraw"] = "n,b"
+                else:
+                    try_copy(g_proton.default_pfx_dir + "drive_c/windows/syswow64/ddraw.dll", "drive_c/windows/syswow64",
+                            prefix=self.prefix_dir, track_file=tracked_files, link_debug=True)
+
                 for f in icufiles:
                     dst = "drive_c/windows/system32/" + f + ".dll"
                     if not file_exists(self.prefix_dir + dst, follow_symlinks=False):
@@ -1811,6 +1822,7 @@ class Session:
         self.check_environment("PROTON_USE_WOW64", "wow64")
         if not self.check_environment("PROTON_USE_WINED3D", "wined3d"):
             self.check_environment("PROTON_USE_WINED3D11", "wined3d")
+        self.check_environment("PROTON_D7VK_DDRAW", "d7vkddraw")
         self.check_environment("PROTON_DXVK_D3D8", "dxvkd3d8")
         self.check_environment("PROTON_NO_D3D11", "nod3d11")
         self.check_environment("PROTON_NO_D3D10", "nod3d10")
