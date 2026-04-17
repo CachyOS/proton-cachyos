@@ -1988,6 +1988,10 @@ class Session:
             self.compat_config.add("nvml")
             self.compat_config.add("nvoptix")
 
+        self.check_environment("DXVK_NVAPI_VKREFLEX", "vkreflex")
+        if "vkreflex" in self.compat_config and "disablenvapi" not in self.compat_config and utilities.is_driver_loaded({'nvidia'}):
+            utilities.add_vk_implicit_layer(prepend_to_env_str, self.env, g_proton.dist_dir + "share/dxvk-nvapi-vkreflex-layer/implicit_layer.d")
+
         if "nofsync" in self.compat_config:
             self.env.pop("WINEFSYNC", "")
             self.env["WINEFSYNC"] = "0"
