@@ -175,6 +175,7 @@ $(eval $(call rules-source,patches,$(SRCDIR)/patches))
 
 ifneq ($(WITHOUT_STEAMRT_DEPENDS),1)
 include $(SRC)/steamrtdeps/build-libwebp.mk
+include $(SRC)/steamrtdeps/build-libxml2.mk
 endif # WITHOUT_STEAMRT_DEPENDS
 
 
@@ -352,15 +353,17 @@ GST_GOOD_MESON_ARGS += \
 	-Dflx=enabled \
 	-Dxingmux=enabled \
 	-Dy4m=enabled \
+	-Dadaptivedemux2=enabled \
 	-Djpeg=enabled \
 
 GST_GOOD_MESON_ARGS += \
-	-Dadaptivedemux2=disabled \
 	-Dflac=disabled \
 	-Dspeex=disabled
 
 GST_GOOD_DEPENDS = gst_orc gstreamer gst_base libsoup
 GST_GOOD_HOST_DEPENDS = gst_orc
+
+GST_GOOD_DEPENDS += $(LIBXML2_DEPENDENCY)
 
 $(eval $(call rules-source,gst_good,$(SRCDIR)/gstreamer/subprojects/gst-plugins-good/))
 $(eval $(call rules-meson,gst_good,i386,unix))
@@ -456,8 +459,10 @@ GST_BAD_MESON_ARGS += \
 	-Duvch264=enabled \
 	-Dv4l2codecs=enabled \
 	-Dbz2=enabled \
+	-Ddash=enabled \
 	-Dopus=enabled \
 	-Dsctp=enabled \
+	-Dsmoothstreaming=enabled \
 	-Dwebp=enabled \
 	-Dwayland=disabled \
 	-Dx11=disabled \
@@ -467,15 +472,15 @@ GST_BAD_MESON_ARGS += \
 	-Daes=disabled \
 	-Dclosedcaption=disabled \
 	-Dcolormanagement=disabled \
-	-Ddash=disabled \
 	-Ddtls=disabled \
 	-Dopenal=disabled \
-	-Dsmoothstreaming=disabled \
 	-Dsndfile=disabled \
 	-Dttml=disabled
 
 GST_BAD_DEPENDS = gst_orc gstreamer gst_base
 GST_BAD_HOST_DEPENDS = gst_orc
+
+GST_BAD_DEPENDS += $(LIBXML2_DEPENDENCY)
 
 GST_BAD_i386_DEPENDS += $(LIBWEBP_DEPENDENCY)
 
@@ -966,6 +971,8 @@ WINE_DEPENDS = gst_orc gstreamer gst_base ffmpeg
 WINE_i386_DEPENDS = $(WINE_VKD3D_DEPENDENCY)
 WINE_x86_64_DEPENDS = $(WINE_VKD3D_DEPENDENCY)
 endif
+
+WINE_DEPENDS += $(LIBXML2_DEPENDENCY)
 
 WINE_i386_LIBDIR = $(WINE_i386_DST)/lib
 WINE_x86_64_LIBDIR = $(WINE_x86_64_DST)/lib
