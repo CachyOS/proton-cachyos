@@ -461,7 +461,6 @@ GST_BAD_MESON_ARGS += \
 	-Dvideoframe_audiolevel=enabled \
 	-Dvideosignal=enabled \
 	-Dvmnc=enabled \
-	-Dy4m=enabled \
 	-Ddvb=enabled \
 	-Dgtk3=disabled \
 	-Dipcpipeline=enabled \
