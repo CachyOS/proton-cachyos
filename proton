@@ -2005,6 +2005,12 @@ class Session:
             # Disable hidraw for Sony DualShock and DualSense controllers.
             self.env["PROTON_DISABLE_HIDRAW"] = "0x054C/0x05C4,0x054C/0x09CC,0x054C/0x0BA0,0x054C/0x0CE6,0x054C/0x0DF2"
 
+        if "dxvksarek" in self.compat_config:
+            threads = os.cpu_count() - (2 if os.cpu_count() > 4 else (1 if os.cpu_count() > 2 else 0))
+            append_to_env_str(self.env, "DXVK_CONFIG", f"dxvk.numCompilerThreads={threads}", ";")
+            append_to_env_str(self.env, "DXVK_CONFIG", f"dxvk.numAsyncThreads={threads}", ";")
+            append_to_env_str(self.env, "DXVK_CONFIG", f"dxvk.numDyasyncThreads={threads}", ";")
+
 
         if "__GLVND_DISALLOW_PATCHING" not in self.env:
             self.env["__GLVND_DISALLOW_PATCHING"] = "1"
