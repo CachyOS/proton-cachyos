@@ -1530,6 +1530,11 @@ $(DIST_FONTS): fonts
 
 all-dist: $(DIST_FONTS)
 
+fonts-distclean::
+	rm -rf $(FONTS_OBJ)
+
+distclean: fonts-distclean
+
 
 ##
 ## Gecko
@@ -1564,6 +1569,11 @@ $(OBJ)/.gecko-x86_64-dist: $(SRC)/contrib/$(GECKO_x86_64_TARBALL)
 
 all-dist: $(OBJ)/.gecko-i386-dist $(OBJ)/.gecko-x86_64-dist
 
+gecko-distclean::
+	rm -rf $(OBJ)/.gecko-{i386,x86_64}-dist
+
+distclean: gecko-distclean
+
 
 ##
 ## wine-mono
@@ -1593,6 +1603,11 @@ $(DIST_WINEMONO): $(SRC)/contrib/$(WINEMONO_TARBALL)
 	touch $@
 
 all-dist: $(DIST_WINEMONO)
+
+mono-distclean::
+	rm -rf $(OBJ)/.wine-mono-dist
+
+distclean: mono-distclean
 
 
 ##
@@ -1630,6 +1645,10 @@ endif
 
 all-dist: $(DIST_XALIA)
 
+xalia-distclean::
+	rm -rf $(OBJ)/.xalia-dist
+
+distclean: xalia-distclean
 
 ##
 ## ICU
@@ -1666,6 +1685,11 @@ all-dist: $(OBJ)/.icu-x86_64-dist $(OBJ)/.icu-i386-dist
 ifneq ($(findstring aarch64,$(unix_ARCHS)),)
 all-dist: $(OBJ)/.icu-aarch64-dist
 endif
+
+icu-distclean::
+	rm -rf $(OBJ)/.icu-{x86_64,i386}-dist
+
+distclean: icu-distclean
 
 
 ##
@@ -1810,6 +1834,18 @@ deploy: all
 redist: all
 	mkdir -p $(REDIST_DIR)
 	rsync --delete -arx $(DST_BASE)/ $(REDIST_DIR)
+
+
+##
+## make distclean
+##
+
+dist-distclean::
+	rm -rf $(OBJ)/wine
+	rm -rf $(OBJ)/dist
+	rm -rf $(OBJ)/compile_commands
+
+distclean: dist-distclean
 
 
 ##
