@@ -1253,7 +1253,7 @@ class CompatData:
                 use_nvenc = "nvenc" in g_session.compat_config and allow_nvidia_libs
                 use_nvcuda = ("nvcuda" in g_session.compat_config and allow_nvidia_libs) or use_nvenc or use_nvoptix
 
-                if use_nvcuda or use_nvenc or use_nvml or use_nvoptix:
+                if use_nvcuda or use_nvenc or use_nvoptix:
                     nvapi_path = "nvidia-libs/nvapi/"
                 else:
                     nvapi_path = "nvapi/"
@@ -1909,6 +1909,10 @@ class Session:
         self.env.setdefault("DXVK_LOG_LEVEL", "none")
         self.env.setdefault("VKD3D_DEBUG", "none")
         self.env.setdefault("VKD3D_SHADER_DEBUG", "none")
+
+        # Enable wine-nvml by default on Nvidia (experimental)
+        if utilities.is_driver_loaded({'nvidia'}):
+            self.compat_config.add("nvml")
 
         if "wined3d11" in self.compat_config:
             self.compat_config.add("wined3d")
