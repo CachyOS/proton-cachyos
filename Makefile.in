@@ -1272,6 +1272,13 @@ endif # WITHOUT_NVIDIA_LIBS
 
 
 ##
+## vklayers
+##
+
+include $(SRC)/vklayers/build-dxvk-nvapi-vkreflex-layer.mk
+
+
+##
 ## FEX
 ##
 
