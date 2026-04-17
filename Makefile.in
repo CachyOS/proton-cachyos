@@ -183,6 +183,7 @@ $(eval $(call rules-source,meson,$(SRCDIR)/meson))
 include $(SRC)/steamrtdeps/build-libwebp.mk
 include $(SRC)/steamrtdeps/build-libxml2.mk
 include $(SRC)/steamrtdeps/build-libxkbcommon.mk
+include $(SRC)/steamrtdeps/build-libpcap.mk
 include $(SRC)/steamrtdeps/build-xz.mk
 include $(SRC)/steamrtdeps/build-speexdsp.mk
 include $(SRC)/steamrtdeps/build-speex.mk
@@ -993,6 +994,7 @@ endif
 
 WINE_DEPENDS += $(LIBXML2_DEPENDENCY)
 WINE_DEPENDS += $(LIBXKBCOMMON_DEPENDENCY)
+WINE_DEPENDS += $(LIBPCAP_DEPENDENCY)
 
 WINE_i386_LIBDIR = $(WINE_i386_DST)/lib
 WINE_x86_64_LIBDIR = $(WINE_x86_64_DST)/lib
