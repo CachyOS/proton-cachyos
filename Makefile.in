@@ -317,6 +317,7 @@ GST_BASE_MESON_ARGS += \
 	-Ddoc=disabled \
 	-Dtools=disabled \
 	-Drawparse=enabled \
+	-Dgl_winsys=surfaceless,x11,wayland,egl \
 
 GST_BASE_LDFLAGS = -lm
 GST_BASE_DEPENDS = gst_orc graphene gstreamer
