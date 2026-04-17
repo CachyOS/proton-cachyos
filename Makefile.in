@@ -1224,6 +1224,7 @@ $(OBJ)/.vkd3d-proton-post-source:
 ##
 
 include $(SRC)/extras/build-dxvk-sarek.mk
+include $(SRC)/extras/build-d7vk.mk
 
 
 ##

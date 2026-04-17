@@ -196,6 +196,9 @@ function configure() {
     if [[ -n "$arg_without_sarek" ]]; then
       echo "WITHOUT_SAREK := 1"
     fi
+    if [[ -n "$arg_without_d7vk" ]]; then
+      echo "WITHOUT_D7VK := 1"
+    fi
 
     echo "HOST_CFLAGS := ${CFLAGS:--O2 -march=nocona -mtune=core-avx2}"
     echo "HOST_RUSTFLAGS := ${RUSTFLAGS:--Copt-level=3 -Ctarget-cpu=nocona}"
@@ -223,6 +226,7 @@ arg_enable_ccache=""
 arg_enable_wow64=""
 arg_without_tts=""
 arg_without_sarek=""
+arg_without_d7vk=""
 arg_help=""
 invalid_args=""
 function parse_args() {
@@ -278,6 +282,8 @@ function parse_args() {
       arg_without_tts="1"
     elif [[ $arg = --without-sarek ]]; then
       arg_without_sarek="1"
+    elif [[ $arg = --without-d7vk ]]; then
+      arg_without_d7vk="1"
     elif [[ $arg = --proton-sdk-image ]]; then
       val_used=1
       arg_protonsdk_image="$val"
@@ -340,6 +346,8 @@ usage() {
   "$1" "    --without-tts Disables text-to-speech libraries (OpenFST, VOSK, Kaldi and Piper)"
   "$1" ""
   "$1" "    --without-sarek Disables dxvk-sarek"
+  "$1" ""
+  "$1" "    --without-d7vk Disables d7vk"
   "$1" ""
   "$1" "  Steam Runtime"
   "$1" "    Proton builds that are to be installed & run under the steam client must be built with"
