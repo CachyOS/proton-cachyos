@@ -4,6 +4,30 @@
 [submodule "meson"]
 	path = meson
 	url = https://github.com/mesonbuild/meson.git
+[submodule "nvidia-libs/dxvk-nvapi"]
+	path = nvidia-libs/dxvk-nvapi
+	url = https://github.com/SveSop/dxvk-nvapi.git
+	branch = experimental
+[submodule "nvidia-libs/nvcuda"]
+	path = nvidia-libs/nvcuda
+	url = https://github.com/SveSop/nvcuda.git
+[submodule "nvidia-libs/nvcuda32"]
+	path = nvidia-libs/nvcuda32
+	url = https://github.com/SveSop/nvcuda.git
+	branch = 32bit_only
+[submodule "nvidia-libs/nvenc"]
+	path = nvidia-libs/nvenc
+	url = https://github.com/SveSop/nvenc.git
+[submodule "nvidia-libs/nvenc32"]
+	path = nvidia-libs/nvenc32
+	url = https://github.com/SveSop/nvenc.git
+	branch = old-32-64_version
+[submodule "nvidia-libs/wine-nvml"]
+	path = nvidia-libs/wine-nvml
+	url = https://github.com/Saancreed/wine-nvml.git
+[submodule "nvidia-libs/wine-nvoptix"]
+	path = nvidia-libs/wine-nvoptix
+	url = https://github.com/SveSop/wine-nvoptix.git
 [submodule "dxvk"]
 	path = dxvk
 	url = https://github.com/doitsujin/dxvk.git
