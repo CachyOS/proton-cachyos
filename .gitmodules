@@ -39,6 +39,9 @@
 [submodule "steamrtdeps/libxkbcommon"]
 	path = steamrtdeps/libxkbcommon
 	url = https://github.com/xkbcommon/libxkbcommon.git
+[submodule "steamrtdeps/libpcap"]
+	path = steamrtdeps/libpcap
+	url = https://github.com/the-tcpdump-group/libpcap.git
 [submodule "steamrtdeps/libwebp"]
 	path = steamrtdeps/libwebp
 	url = https://github.com/webmproject/libwebp.git
