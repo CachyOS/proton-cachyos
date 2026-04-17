@@ -36,6 +36,9 @@
 [submodule "steamrtdeps/libxml2"]
 	path = steamrtdeps/libxml2
 	url = https://github.com/GNOME/libxml2.git
+[submodule "steamrtdeps/libxkbcommon"]
+	path = steamrtdeps/libxkbcommon
+	url = https://github.com/xkbcommon/libxkbcommon.git
 [submodule "steamrtdeps/libwebp"]
 	path = steamrtdeps/libwebp
 	url = https://github.com/webmproject/libwebp.git
