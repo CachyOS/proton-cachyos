@@ -1954,6 +1954,7 @@ class Session:
         self.check_environment("PROTON_USE_WAYLAND", "wayland")
         self.check_environment("PROTON_PREFER_SDL", "sdlinput")
         self.check_environment("PROTON_USE_SDL", "sdlinput")
+        self.check_environment("PROTON_DLSS_INDICATOR", "dlsshud")
         self.check_environment("PROTON_NATIVE_AGS", "nativeags")
 
         if "mediaconv" in self.compat_config:
@@ -2292,6 +2293,11 @@ class Session:
         if update_prefix_files:
             g_compatdata.setup_prefix()
         g_compatdata.sync_appcache()
+
+        if "dlsshud" in self.compat_config:
+            self.env["DXVK_NVAPI_SET_NGX_DEBUG_OPTIONS"] = "DLSSIndicator=1024,DLSSGIndicator=2,"
+        else:
+            self.env.setdefault("DXVK_NVAPI_SET_NGX_DEBUG_OPTIONS", "DLSSIndicator=0,DLSSGIndicator=0,")
 
         if "nod3d11" in self.compat_config:
             self.dlloverrides["d3d11"] = ""
