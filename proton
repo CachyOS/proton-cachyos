@@ -1414,7 +1414,7 @@ def default_compat_config():
             ret.add("nomfdxgiman")
 
         if appid in [
-                # OPWR may be causing text input delays in login windows in these games on Wayland due to
+                # OPWR may be causing text input delays in login windows in these games on XWayland due to
                 # blit happening before presentation
                 "1172620", #Sea of Thieves
                 "962130", #Grounded
@@ -1437,6 +1437,10 @@ def default_compat_config():
                 "1180660", #Tell Me Why
                 "1238430", #Tell Me Why Chapter 2
                 "1266670", #Tell Me Why Chapter 3
+                ]:
+            ret.add("noopwrx11")
+
+        if appid in [
                 # Other issues arising from OWPR code path in apps, e. g., hitting unimplemented bits in
                 # d3dcompiler.
                 "230410", #Warframe
@@ -2121,6 +2125,9 @@ class Session:
             self.env["WINE_DO_NOT_CREATE_DXGI_DEVICE_MANAGER"] = "1"
 
         if "noopwr" in self.compat_config:
+            self.env["WINE_DISABLE_VULKAN_OPWR"] = "1"
+
+        if "noopwrx11" in self.compat_config and "wayland" not in self.compat_config:
             self.env["WINE_DISABLE_VULKAN_OPWR"] = "1"
 
         if "PROTON_USE_XALIA" not in self.env:
