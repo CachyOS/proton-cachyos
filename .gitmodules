@@ -81,3 +81,6 @@
 [submodule "extras/dxvk-sarek"]
 	path = extras/dxvk-sarek
 	url = https://github.com/pythonlover02/DXVK-Sarek.git
+[submodule "extras/d7vk"]
+	path = extras/d7vk
+	url = https://github.com/WinterSnowfall/d7vk.git
