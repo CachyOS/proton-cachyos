@@ -11,20 +11,12 @@ $$(OBJ)/.$(1)-$(3)-tools: CCACHE_BASEDIR = $$($(2)_SRC)
 $$(OBJ)/.$(1)-$(3)-tools: $$(OBJ)/.$(1)-source
 $$(OBJ)/.$(1)-$(3)-tools: $$(OBJ)/.$(1)-$(3)-configure
 
-ifneq ($(3),$$(HOST_ARCH))
-$$(OBJ)/.$(1)-$(3)-configure: | $$(OBJ)/.$(1)-$$(HOST_ARCH)-tools
-$$(OBJ)/.$(1)-$(3)-build: $$(OBJ)/.$(1)-$$(HOST_ARCH)-tools
-$(2)_$(3)_AUTOCONF_ARGS += --with-wine-tools=$$($(2)_$$(HOST_ARCH)_OBJ)
-endif
-
 $$(OBJ)/.$(1)-$(3)-tools:
-ifeq ($(3),$$(HOST_ARCH))
 	@echo ":: building $(1)-$(3)-tools..." >&2
 	+cd "$$($(2)_$(3)_OBJ)" && env $$($(2)_$(3)_ENV) \
 	$$(MAKE) __tooldeps__
 	+cd "$$($(2)_$(3)_OBJ)" && env $$($(2)_$(3)_ENV) \
 	$$(MAKE) nls/all
-endif
 	touch $$@
 
 $$(OBJ)/.$(1)-$(3)-build: $$(OBJ)/.$(1)-$(3)-tools
