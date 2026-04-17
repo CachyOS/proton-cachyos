@@ -1848,6 +1848,9 @@ all-dist: $(DIST_LICENSE) $(DIST_OFL_LICENSE) $(DIST_AV1_PATENTS)
 FILELOCK_TARGET := $(addprefix $(DST_BASE)/,filelock.py)
 $(FILELOCK_TARGET): $(addprefix $(SRCDIR)/,filelock.py)
 
+UTILITIES_TARGET := $(addprefix $(DST_BASE)/,utilities.py)
+$(UTILITIES_TARGET): $(addprefix $(SRCDIR)/,utilities.py)
+
 PROTON_PY_TARGET := $(addprefix $(DST_BASE)/,proton)
 $(PROTON_PY_TARGET): $(addprefix $(SRCDIR)/,proton)
 
@@ -1857,7 +1860,7 @@ $(PROTON37_TRACKED_FILES_TARGET): $(addprefix $(SRCDIR)/,proton_3.7_tracked_file
 USER_SETTINGS_PY_TARGET := $(addprefix $(DST_BASE)/,user_settings.sample.py)
 $(USER_SETTINGS_PY_TARGET): $(addprefix $(SRCDIR)/,user_settings.sample.py)
 
-DIST_COPY_TARGETS := $(FILELOCK_TARGET) $(PROTON_PY_TARGET) \
+DIST_COPY_TARGETS := $(FILELOCK_TARGET) $(UTILITIES_TARGET) $(PROTON_PY_TARGET) \
                      $(PROTON37_TRACKED_FILES_TARGET) $(USER_SETTINGS_PY_TARGET)
 
 ifeq ($(ENABLE_WOW64),1)
