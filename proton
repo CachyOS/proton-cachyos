@@ -1717,6 +1717,10 @@ class Session:
         else:
             self.env.pop("LC_ALL", "")
 
+        # FIXME: temporary workaround to libxkbcommon's current integration
+        if "XLOCALEDIR" not in self.env:
+            self.env["XLOCALEDIR"] = g_proton.dist_dir + "share/X11/locale"
+
         # CW-Bug-Id: #23185 Enable the new SDL 2.30 Steam Input integration.
         if "SteamVirtualGamepadInfo_Proton" in self.env and "SteamVirtualGamepadInfo" not in self.env:
             self.env["SteamVirtualGamepadInfo"] = self.env["SteamVirtualGamepadInfo_Proton"]
