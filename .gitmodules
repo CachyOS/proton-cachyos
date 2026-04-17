@@ -128,3 +128,6 @@
 [submodule "extras/d7vk"]
 	path = extras/d7vk
 	url = https://github.com/WinterSnowfall/d7vk.git
+[submodule "extras/dxvk-low-latency"]
+	path = extras/dxvk-low-latency
+	url = https://github.com/netborg-afps/dxvk-low-latency.git
