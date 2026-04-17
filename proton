@@ -1951,6 +1951,7 @@ class Session:
         self.check_environment("PROTON_USE_SDL", "sdlinput")
 
         if "nowmdecoration" in self.compat_config:
+            self.env["WAYLANDDRV_SSD"] = "0"
             self.env["WINE_NO_WM_DECORATION"] = "1"
 
         if "nvidialibs" in self.compat_config:
