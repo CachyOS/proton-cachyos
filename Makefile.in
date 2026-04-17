@@ -170,6 +170,13 @@ $(eval $(call rules-source,patches,$(SRCDIR)/patches))
 
 
 ##
+## meson
+##
+
+$(eval $(call rules-source,meson,$(SRCDIR)/meson))
+
+
+##
 ## steamrtdeps
 ##
 
