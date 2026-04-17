@@ -52,13 +52,19 @@ DEPLOY_DIR := ./deploy
 REDIST_DIR := ./redist
 
 HOST_CFLAGS    ?= -O2 -march=nocona -mtune=core-avx2
-i386_CFLAGS    := -mstackrealign $(HOST_CFLAGS) -mfpmath=sse
-x86_64_CFLAGS  := -mcmodel=small $(HOST_CFLAGS) -mfpmath=sse
-aarch64_CFLAGS := -march=armv8.2-a -mtune=cortex-x3
-arm64ec_CFLAGS := -march=armv8.2-a -mtune=cortex-x3
+CCOS_CFLAGS    := $(HOST_CFLAGS) -pipe
+i386_CFLAGS    := -mstackrealign $(CCOS_CFLAGS) -mfpmath=sse
+x86_64_CFLAGS  := -mcmodel=small $(CCOS_CFLAGS) -mfpmath=sse
+HOST_RUSTFLAGS   ?= -Copt-level=3 -Ctarget-cpu=nocona
+i386_RUSTFLAGS   := $(HOST_RUSTFLAGS)
+x86_64_RUSTFLAGS := $(HOST_RUSTFLAGS)
+aarch64_CFLAGS := -O2 -march=armv8.2-a -mtune=cortex-x3
+arm64ec_CFLAGS := -O2 -march=armv8.2-a -mtune=cortex-x3
+aarch64_RUSTFLAGS := -Copt-level=3 -Ctarget-cpu=armv8.2-a
+arm64ec_RUSTFLAGS := -Copt-level=3 -Ctarget-cpu=armv8.2-a
 
-CFLAGS  = -O2 -fwrapv -fno-strict-aliasing
-CFLAGS += -ggdb -ffunction-sections -fdata-sections -fno-omit-frame-pointer
+CFLAGS  = -fwrapv -fno-strict-aliasing
+CFLAGS += -ffunction-sections -fdata-sections -fno-omit-frame-pointer
 CFLAGS += -ffile-prefix-map=$(CCACHE_BASEDIR)=.
 
 ifneq ($(SUPPRESS_WARNINGS),)
@@ -99,11 +105,17 @@ ifeq ($(shell cc --version|grep 'clang'),)
 	TOOLCHAIN_PREFIX :=
 	OBJCOPY_FLAGS  := -p
 	MINGW_TYPE := gcc
+	i386_CFLAGS += -mno-avx -mno-avx2 -mno-avx512f
+	i386_CFLAGS += -fvect-cost-model=cheap -fno-semantic-interposition -fipa-pta
+	x86_64_CFLAGS += -mno-avx -mno-avx2 -mno-avx512f
+	x86_64_CFLAGS += -fvect-cost-model=cheap -fno-semantic-interposition -fipa-pta
 else
 	# CLANG-specific flags
 	TOOLCHAIN_PREFIX := llvm-
 	OBJCOPY_FLAGS  :=
 	MINGW_TYPE := clang
+	i386_CFLAGS += -mno-avx -mno-avx2 -mno-avx512f
+	x86_64_CFLAGS += -mno-avx -mno-avx2 -mno-avx512f
 	# TODO: move this to a configure option
 endif
 
@@ -113,10 +125,14 @@ ifneq ($(UNSTRIPPED_BUILD),)
     STRIP :=
     INSTALL_PROGRAM_FLAGS :=
     MESON_STRIP_ARG :=
+    CFLAGS += -ggdb
 else
     STRIP := $(TOOLCHAIN_PREFIX)strip
     INSTALL_PROGRAM_FLAGS := -s
     MESON_STRIP_ARG := --strip
+ifeq ($(shell cc --version|grep 'clang'),)
+    CFLAGS += -s
+endif
 endif
 
 # all, all-dist and dist are basically synonyms
