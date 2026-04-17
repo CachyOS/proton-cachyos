@@ -82,7 +82,10 @@ ARCHS := i386-windows x86_64-windows
 TARGET_ARCH ?= x86_64
 
 ifeq ($(TARGET_ARCH),x86_64)
-	ARCHS += i386-unix x86_64-unix
+	ARCHS += x86_64-unix
+ifneq ($(ENABLE_WOW64),1)
+	ARCHS += i386-unix
+endif
 else ifeq ($(TARGET_ARCH),arm64)
 	ARCHS += aarch64-unix aarch64-windows arm64ec-windows
 else
@@ -848,9 +851,11 @@ $(eval $(call rules-cmake,kaldi,aarch64,unix))
 # the same source directory.
 #
 # The below assures that only a single configure/build step can run at a time.
+ifneq ($(findstring i386,$(unix_ARCHS)),)
 $(OBJ)/.kaldi-x86_64-configure: $(OBJ)/.kaldi-i386-configure
 $(OBJ)/.kaldi-i386-build: $(OBJ)/.kaldi-x86_64-configure
 $(OBJ)/.kaldi-i386-build: $(OBJ)/.kaldi-x86_64-build
+endif
 
 ##
 ## vosk
@@ -917,22 +922,25 @@ WINE_x86_64_AUTOCONF_ARGS = \
 WINE_aarch64_AUTOCONF_ARGS = \
   --enable-archs=$(call list-join,$(comma),arm64ec aarch64 $(filter-out arm64ec aarch64 $(unix_ARCHS),$(windows_ARCHS)))
 
+ifneq ($(findstring i386,$(unix_ARCHS)),)
 WINE_i386_AUTOCONF_ARGS += \
   VKD3D_PE_CFLAGS="-I$(VULKAN_HEADERS_i386_DST)/include -I$(VKD3D_i386_DST)/include/vkd3d" \
   VKD3D_PE_LIBS="-L$(VKD3D_i386_LIBDIR) -lvkd3d -lvkd3d-shader -lvkd3d-utils"
 WINE_x86_64_AUTOCONF_ARGS += \
   VKD3D_PE_CFLAGS="-I$(VULKAN_HEADERS_x86_64_DST)/include -I$(VKD3D_x86_64_DST)/include/vkd3d" \
   VKD3D_PE_LIBS="-L$(VKD3D_x86_64_LIBDIR) -lvkd3d -lvkd3d-shader -lvkd3d-utils"
+WINE_VKD3D_DEPENDENCY = vkd3d
+endif
 
 ifneq ($(WITHOUT_TTS),1)
 WINE_DEPENDS = gst_orc gstreamer gst_base ffmpeg openfst kaldi vosk
-WINE_i386_DEPENDS = vkd3d
-WINE_x86_64_DEPENDS = piper vkd3d
+WINE_i386_DEPENDS = $(WINE_VKD3D_DEPENDENCY)
+WINE_x86_64_DEPENDS = piper $(WINE_VKD3D_DEPENDENCY)
 WINE_aarch64_DEPENDS = piper
 else
 WINE_DEPENDS = gst_orc gstreamer gst_base ffmpeg
-WINE_i386_DEPENDS = vkd3d
-WINE_x86_64_DEPENDS = vkd3d
+WINE_i386_DEPENDS = $(WINE_VKD3D_DEPENDENCY)
+WINE_x86_64_DEPENDS = $(WINE_VKD3D_DEPENDENCY)
 endif
 
 WINE_i386_LIBDIR = $(WINE_i386_DST)/lib
