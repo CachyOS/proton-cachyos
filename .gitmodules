@@ -87,3 +87,6 @@
 [submodule "extras/dxvk-low-latency"]
 	path = extras/dxvk-low-latency
 	url = https://github.com/netborg-afps/dxvk-low-latency.git
+[submodule "extras/vkd3d-low-latency"]
+	path = extras/vkd3d-low-latency
+	url = https://github.com/netborg-afps/vkd3d-low-latency.git

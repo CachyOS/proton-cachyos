@@ -342,7 +342,7 @@ usage() {
   "$1" "    --without-tts Disables text-to-speech libraries (OpenFST, VOSK, Kaldi and Piper)"
   "$1" ""
   "$1" "    --without-extras=<list> Comma-separated list of extras to disable, or 'all' to disable everything."
-  "$1" "                            Values: all | dxvk-sarek | d7vk | dxvk-low-latency"
+  "$1" "                            Values: all | dxvk-sarek | d7vk | dxvk-low-latency | vkd3d-low-latency"
   "$1" ""
   "$1" "  Steam Runtime"
   "$1" "    Proton builds that are to be installed & run under the steam client must be built with"
