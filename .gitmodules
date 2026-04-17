@@ -81,3 +81,6 @@
 [submodule "piper-phonemize"]
 	path = piper-phonemize
 	url = https://github.com/shaunren/piper-phonemize
+[submodule "extras/dxvk-sarek"]
+	path = extras/dxvk-sarek
+	url = https://github.com/pythonlover02/DXVK-Sarek.git
