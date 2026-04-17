@@ -137,6 +137,12 @@ $(2)_$(3)_ENV = \
     LDFLAGS="$$($(2)_$(3)-$(4)_LIBFLAGS) $$($(2)_$(3)_LIBFLAGS) $$($(2)_LDFLAGS) $$($(3)_LDFLAGS) $$(LDFLAGS)" \
     SOURCE_DATE_EPOCH="$$($(2)_$(3)_SOURCE_DATE_EPOCH)" \
 
+$(2)_$(3)_ENV += \
+    WINEDEBUG="-all" \
+    WINEPREFIX="$$(OBJ)/pfx-wine-$(3)" WINEESYNC="0" WINEFSYNC="0" \
+    WINEDLLOVERRIDES="winex11.drv,winewayland.drv=d;winemenubuilder=d;" \
+    CARGO_TARGET_$$(call toupper,$$($(3)-$(4)_CARGO_TARGET))_RUSTFLAGS="$$(HOST_RUSTFLAGS)" \
+
 ifeq ($(1),wine)
 
 # aarch64 always builds wine with clang directly so build tools do not need to be specified
