@@ -141,7 +141,7 @@ $(2)_$(3)_ENV += \
     WINEDEBUG="-all" \
     WINEPREFIX="$$(OBJ)/pfx-wine-$(3)" WINEESYNC="0" WINEFSYNC="0" \
     WINEDLLOVERRIDES="winex11.drv,winewayland.drv=d;winemenubuilder=d;" \
-    CARGO_TARGET_$$(call toupper,$$($(3)-$(4)_CARGO_TARGET))_RUSTFLAGS="$$(HOST_RUSTFLAGS)" \
+    $$(CARGO_RUSTFLAGS) \
 
 ifeq ($(1),wine)
 
