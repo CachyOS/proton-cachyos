@@ -1869,6 +1869,7 @@ class Session:
         self.check_environment("PROTON_DXVK_SAREK", "dxvksarek")
         self.check_environment("PROTON_DXVK_LOWLATENCY", "dxvklowlatency")
         self.check_environment("PROTON_VKD3D_LOWLATENCY", "vkd3dlowlatency")
+        self.check_environment("PROTON_FSR4_INDICATOR", "fsr4hud")
         self.check_environment("PROTON_DLSS_INDICATOR", "dlsshud")
 
         if "dxvklowlatency" in self.compat_config:
@@ -2152,6 +2153,10 @@ class Session:
         if update_prefix_files:
             g_compatdata.setup_prefix()
         g_compatdata.sync_appcache()
+
+        if "fsr4hud" in self.compat_config:
+            self.env["FSR4_WATERMARK"] = "1"
+            self.env["MLFG_WATERMARK"] = "1"
 
         if "dlsshud" in self.compat_config:
             self.env["DXVK_NVAPI_SET_NGX_DEBUG_OPTIONS"] = "DLSSIndicator=1024,DLSSGIndicator=2,"
