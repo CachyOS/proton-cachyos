@@ -1197,9 +1197,12 @@ class CompatData:
                             prefix=self.prefix_dir, track_file=tracked_files, link_debug=True)
 
                 use_dxvk_sarek = "dxvksarek" in g_session.compat_config and os.path.isdir(g_proton.lib_dir + "wine/dxvk-sarek")
+                use_dxvk_lowlatency = "dxvklowlatency" in g_session.compat_config and os.path.isdir(g_proton.lib_dir + "wine/dxvk-low-latency")
                 if use_dxvk_sarek:
                     use_nvapi = False
                     dxvk_path = "dxvk-sarek/"
+                elif use_dxvk_lowlatency:
+                    dxvk_path = "dxvk-low-latency/"
                 else:
                     dxvk_path = "dxvk/"
 
@@ -1927,6 +1930,7 @@ class Session:
         self.check_environment("PROTON_NO_D3D11", "nod3d11")
         self.check_environment("PROTON_NO_D3D10", "nod3d10")
         self.check_environment("PROTON_DXVK_SAREK", "dxvksarek")
+        self.check_environment("PROTON_DXVK_LOWLATENCY", "dxvklowlatency")
         self.check_environment("PROTON_NO_FSYNC", "nofsync")
         self.check_environment("PROTON_FORCE_LARGE_ADDRESS_AWARE", "forcelgadd")
         self.check_environment("PROTON_OLD_GL_STRING", "oldglstr")
@@ -1966,6 +1970,16 @@ class Session:
         if "nowmdecoration" in self.compat_config:
             self.env["WAYLANDDRV_SSD"] = "0"
             self.env["WINE_NO_WM_DECORATION"] = "1"
+
+        if "dxvklowlatency" in self.compat_config:
+            self.compat_config.add("dxvkllasync")
+            self.env["DXVK_ASYNC"] = "0"
+            append_to_env_str(self.env, "DXVK_CONFIG", "dxvk.enableAsync=False", ";")
+
+        if "dxvkllasync" in self.compat_config:
+            threads = os.cpu_count() - (2 if os.cpu_count() > 4 else (1 if os.cpu_count() > 2 else 0))
+            append_to_env_str(self.env, "DXVK_CONFIG", f"dxvk.numCompilerThreads={threads}", ";")
+            append_to_env_str(self.env, "DXVK_CONFIG", "dxvk.enableGraphicsPipelineLibrary=Auto", ";")
 
         if "nvidialibs" in self.compat_config:
             self.compat_config.add("nvcuda")
