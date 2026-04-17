@@ -697,6 +697,10 @@ $(eval $(call rules-cmake,glslang,i386,unix))
 $(eval $(call rules-cmake,glslang,x86_64,unix))
 $(eval $(call rules-cmake,glslang,aarch64,unix))
 
+$(OBJ)/.glslang-post-source: patches-source
+	$(foreach p,$(shell find $(PATCHES_SRC)/glslang/ -name "*.patch" | sort),patch -d $(GLSLANG_SRC) -Np1 -i $(p) &&) true
+	touch $@
+
 
 ##
 ## lsteamclient
