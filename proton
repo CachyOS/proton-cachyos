@@ -1919,8 +1919,6 @@ class Session:
         self.check_environment("PROTON_USE_WOW64", "wow64")
         if not self.check_environment("PROTON_USE_WINED3D", "wined3d"):
             self.check_environment("PROTON_USE_WINED3D11", "wined3d")
-        self.check_environment("PROTON_NO_WM_DECORATION", "nowmdecoration")
-        self.check_environment("PROTON_PREFER_SDL", "prefersdl")
         self.check_environment("PROTON_D7VK_DDRAW", "d7vkddraw")
         self.check_environment("PROTON_DXVK_D3D8", "dxvkd3d8")
         self.check_environment("PROTON_NO_D3D11", "nod3d11")
@@ -1946,15 +1944,14 @@ class Session:
         self.check_environment("PROTON_NVIDIA_NVML", "nvml")
         self.check_environment("PROTON_NVIDIA_NVOPTIX", "nvoptix")
         self.check_environment("PROTON_HIDE_APU", "hideapu")
+        self.check_environment("PROTON_NO_WM_DECORATION", "nowmdecoration")
+        self.check_environment("PROTON_ENABLE_WAYLAND", "wayland")
+        self.check_environment("PROTON_USE_WAYLAND", "wayland")
+        self.check_environment("PROTON_PREFER_SDL", "sdlinput")
+        self.check_environment("PROTON_USE_SDL", "sdlinput")
 
         if "nowmdecoration" in self.compat_config:
             self.env["WINE_NO_WM_DECORATION"] = "1"
-
-        if "prefersdl" in self.compat_config:
-            self.env["PROTON_DISABLE_HIDRAW"] = "1"
-            self.env["PROTON_NO_STEAMINPUT"] = "1"
-            if "SDL_GAMECONTROLLER_IGNORE_DEVICES" in self.env:
-                del self.env["SDL_GAMECONTROLLER_IGNORE_DEVICES"]
 
         if "nvidialibs" in self.compat_config:
             self.compat_config.add("nvcuda")
@@ -2156,6 +2153,49 @@ class Session:
 
         if "__GLVND_DISALLOW_PATCHING" not in self.env:
             self.env["__GLVND_DISALLOW_PATCHING"] = "1"
+
+        if "wayland" in self.compat_config and "WAYLAND_DISPLAY" in self.env:
+            self.dlloverrides["winex11.drv"] = "d"
+            self.dlloverrides["winewayland.drv"] = "b"
+            # This is required for OpenGL to work on winewayland
+            self.env["WINE_USE_EGL"] = "1"
+            # FSHack is not needed on winewayland
+            self.env["WINE_DISABLE_FULLSCREEN_HACK"] = "1"
+            # Enable the move hack
+            self.env.setdefault("WINE_MOVE_HACK", "1")
+            # It is not possible for winewayland to support xalia since
+            # there is no way to position toplevel surfaces dynamically in wayland
+            self.env["PROTON_USE_XALIA"] = "0"
+            # Use surfaceless by default on winewayland
+            self.env.setdefault("GST_GL_WINDOW", "surfaceless")
+            # Steam input does not work on wayland
+            if "PROTON_NO_STEAMINPUT" not in self.env:
+                self.env["PROTON_NO_STEAMINPUT"] = "1"
+                # When steam input is disabled we need the ignored controllers to work again
+                if "SDL_GAMECONTROLLER_IGNORE_DEVICES" in self.env:
+                    del self.env["SDL_GAMECONTROLLER_IGNORE_DEVICES"]
+                # Some other steam input related options we need to remove
+                if "SteamVirtualGamepadInfo" in self.env:
+                    del self.env["SteamVirtualGamepadInfo"]
+                if "SDL_GAMECONTROLLER_ALLOW_STEAM_VIRTUAL_GAMEPAD" in self.env:
+                    del self.env["SDL_GAMECONTROLLER_ALLOW_STEAM_VIRTUAL_GAMEPAD"]
+            if "DISPLAY" in self.env:
+                del self.env["DISPLAY"]
+        else:
+            # X11 specific changes to increase compat
+            # Surfaceless supports less formats than x11
+            self.env.setdefault("GST_GL_WINDOW", "x11")
+
+        if "sdlinput" in self.compat_config:
+            self.env["PROTON_DISABLE_HIDRAW"] = "1"
+            self.env["PROTON_NO_STEAMINPUT"] = "1"
+            if "SDL_GAMECONTROLLER_IGNORE_DEVICES" in self.env:
+                del self.env["SDL_GAMECONTROLLER_IGNORE_DEVICES"]
+            if not ("PROTON_EMULATE_STEAMINPUT" in self.env and nonzero(self.env["PROTON_EMULATE_STEAMINPUT"])):
+                if "SteamVirtualGamepadInfo" in self.env:
+                    del self.env["SteamVirtualGamepadInfo"]
+                if "SDL_GAMECONTROLLER_ALLOW_STEAM_VIRTUAL_GAMEPAD" in self.env:
+                    del self.env["SDL_GAMECONTROLLER_ALLOW_STEAM_VIRTUAL_GAMEPAD"]
 
         if (os.environ.get("SteamGameId", 0) == "1183470"): # Imperiums: Greek Wars
             self.env.setdefault("WINE_MONO_HIDETYPES", "1")
