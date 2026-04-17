@@ -193,6 +193,9 @@ function configure() {
     if [[ -n "$arg_without_tts" ]]; then
       echo "WITHOUT_TTS := 1"
     fi
+    if [[ -n "$arg_without_nvidia_libs" ]]; then
+      echo "WITHOUT_NVIDIA_LIBS := 1"
+    fi
     if [[ -n "$arg_without_sarek" ]]; then
       echo "WITHOUT_SAREK := 1"
     fi
@@ -225,6 +228,7 @@ arg_relabel_volumes=""
 arg_enable_ccache=""
 arg_enable_wow64=""
 arg_without_tts=""
+arg_without_nvidia_libs=""
 arg_without_sarek=""
 arg_without_d7vk=""
 arg_help=""
@@ -280,6 +284,8 @@ function parse_args() {
       arg_enable_wow64="1"
     elif [[ $arg = --without-tts ]]; then
       arg_without_tts="1"
+    elif [[ $arg = --without-nvidia-libs ]]; then
+      arg_without_nvidia_libs="1"
     elif [[ $arg = --without-sarek ]]; then
       arg_without_sarek="1"
     elif [[ $arg = --without-d7vk ]]; then
@@ -344,6 +350,8 @@ usage() {
   "$1" "    --enable-wow64 Build wine as wow64 only (excludes i386 unix libs from the build)"
   "$1" ""
   "$1" "    --without-tts Disables text-to-speech libraries (OpenFST, VOSK, Kaldi and Piper)"
+  "$1" ""
+  "$1" "    --without-nvidia-libs Disables alternative NVidia libraries (nvcuda, nvenc, nvml, nvoptix)"
   "$1" ""
   "$1" "    --without-sarek Disables dxvk-sarek"
   "$1" ""
