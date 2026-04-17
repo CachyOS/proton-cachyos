@@ -1966,8 +1966,12 @@ class Session:
         self.check_environment("PROTON_DXVK_SAREK", "dxvksarek")
         self.check_environment("PROTON_DXVK_LOWLATENCY", "dxvklowlatency")
         self.check_environment("PROTON_VKD3D_LOWLATENCY", "vkd3dlowlatency")
+        self.check_environment("PROTON_NO_WM_DECORATION", "nowmdecoration")
         self.check_environment("PROTON_FSR4_INDICATOR", "fsr4hud")
         self.check_environment("PROTON_DLSS_INDICATOR", "dlsshud")
+
+        if "nowmdecoration" in self.compat_config:
+            self.env["WINE_NO_WM_DECORATION"] = "1"
 
         if "dxvklowlatency" in self.compat_config:
             self.compat_config.add("dxvkllasync")
