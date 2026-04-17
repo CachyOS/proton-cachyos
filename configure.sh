@@ -202,6 +202,9 @@ function configure() {
     if [[ -n "$arg_without_d7vk" ]]; then
       echo "WITHOUT_D7VK := 1"
     fi
+    if [[ -n "$arg_without_llasync" ]]; then
+      echo "WITHOUT_LLASYNC := 1"
+    fi
 
     echo "HOST_CFLAGS := ${CFLAGS:--O2 -march=nocona -mtune=core-avx2}"
     echo "HOST_RUSTFLAGS := ${RUSTFLAGS:--Copt-level=3 -Ctarget-cpu=nocona}"
@@ -231,6 +234,7 @@ arg_without_tts=""
 arg_without_nvidia_libs=""
 arg_without_sarek=""
 arg_without_d7vk=""
+arg_without_llasync=""
 arg_help=""
 invalid_args=""
 function parse_args() {
@@ -290,6 +294,8 @@ function parse_args() {
       arg_without_sarek="1"
     elif [[ $arg = --without-d7vk ]]; then
       arg_without_d7vk="1"
+    elif [[ $arg = --without-llasync ]]; then
+      arg_without_llasync="1"
     elif [[ $arg = --proton-sdk-image ]]; then
       val_used=1
       arg_protonsdk_image="$val"
@@ -356,6 +362,8 @@ usage() {
   "$1" "    --without-sarek Disables dxvk-sarek"
   "$1" ""
   "$1" "    --without-d7vk Disables d7vk"
+  "$1" ""
+  "$1" "    --without-llasync Disables dxvk-llasync"
   "$1" ""
   "$1" "  Steam Runtime"
   "$1" "    Proton builds that are to be installed & run under the steam client must be built with"
