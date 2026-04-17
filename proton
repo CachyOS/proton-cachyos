@@ -1269,9 +1269,6 @@ class CompatData:
             setup_steam_dir_drive()
             setup_openvr_paths()
 
-            # add Steam ffmpeg libraries to path
-            prepend_to_env_str(g_session.env, ld_path_var, steam_linux_path + "/ubuntu12_64/video/:" + steam_linux_path + "/ubuntu12_32/video/:" + steam_linux_path + "/steamrtarm64/video/", ":")
-
     def sync_appcache(self):
         sgi = os.environ.get('SteamGameId', '')
         if sgi == '':
