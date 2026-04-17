@@ -183,6 +183,7 @@ $(eval $(call rules-source,meson,$(SRCDIR)/meson))
 include $(SRC)/steamrtdeps/build-libwebp.mk
 include $(SRC)/steamrtdeps/build-libxml2.mk
 include $(SRC)/steamrtdeps/build-libxkbcommon.mk
+include $(SRC)/steamrtdeps/build-wayland-protocols.mk
 include $(SRC)/steamrtdeps/build-libpcap.mk
 include $(SRC)/steamrtdeps/build-xz.mk
 include $(SRC)/steamrtdeps/build-speexdsp.mk
@@ -324,6 +325,8 @@ GST_BASE_MESON_ARGS += \
 GST_BASE_LDFLAGS = -lm
 GST_BASE_DEPENDS = gst_orc graphene gstreamer
 GST_BASE_HOST_DEPENDS = gst_orc
+
+GST_BASE_DEPENDS += $(WAYLAND_PROTOCOLS_DEPENDENCY)
 
 $(eval $(call rules-source,gst_base,$(SRCDIR)/gstreamer/subprojects/gst-plugins-base))
 $(eval $(call rules-meson,gst_base,i386,unix))
@@ -477,8 +480,8 @@ GST_BAD_MESON_ARGS += \
 	-Dsctp=enabled \
 	-Dsmoothstreaming=enabled \
 	-Dwebp=enabled \
-	-Dwayland=disabled \
-	-Dx11=disabled \
+	-Dwayland=enabled \
+	-Dx11=enabled \
 	-Dorc=enabled
 
 GST_BAD_MESON_ARGS += \
@@ -494,6 +497,7 @@ GST_BAD_DEPENDS = gst_orc gstreamer gst_base
 GST_BAD_HOST_DEPENDS = gst_orc
 
 GST_BAD_DEPENDS += $(LIBXML2_DEPENDENCY)
+GST_BAD_DEPENDS += $(WAYLAND_PROTOCOLS_DEPENDENCY)
 
 GST_BAD_i386_DEPENDS += $(LIBWEBP_DEPENDENCY)
 
