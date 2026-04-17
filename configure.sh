@@ -187,6 +187,9 @@ function configure() {
     if [[ -n "$arg_enable_ccache" ]]; then
       echo "ENABLE_CCACHE := 1"
     fi
+    if [[ -n "$arg_without_tts" ]]; then
+      echo "WITHOUT_TTS := 1"
+    fi
 
     # Include base
     echo ""
@@ -208,6 +211,7 @@ arg_container_engine=""
 arg_docker_opts=""
 arg_relabel_volumes=""
 arg_enable_ccache=""
+arg_without_tts=""
 arg_help=""
 invalid_args=""
 function parse_args() {
@@ -257,6 +261,8 @@ function parse_args() {
       arg_relabel_volumes="1"
     elif [[ $arg = --enable-ccache ]]; then
       arg_enable_ccache="1"
+    elif [[ $arg = --without-tts ]]; then
+      arg_without_tts="1"
     elif [[ $arg = --proton-sdk-image ]]; then
       val_used=1
       arg_protonsdk_image="$val"
@@ -313,6 +319,8 @@ usage() {
   "$1" "    --relabel-volumes Bind-mounted volumes will be relabeled. Use with caution."
   "$1" ""
   "$1" "    --enable-ccache Mount \$CCACHE_DIR or \$HOME/.ccache inside of the container and use ccache for the build."
+  "$1" ""
+  "$1" "    --without-tts Disables text-to-speech libraries (OpenFST, VOSK, Kaldi and Piper)"
   "$1" ""
   "$1" "  Steam Runtime"
   "$1" "    Proton builds that are to be installed & run under the steam client must be built with"
