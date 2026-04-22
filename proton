@@ -41,6 +41,8 @@ from random import randrange
 
 #To enable debug logging, copy "user_settings.sample.py" to "user_settings.py"
 #and edit it if needed.
+import utilities
+
 
 CURRENT_PREFIX_VERSION="11.0-100"
 
