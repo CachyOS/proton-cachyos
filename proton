@@ -1791,6 +1791,9 @@ class Session:
         self.check_environment("PROTON_FORCE_NVAPI", "forcenvapi")
         self.check_environment("PROTON_HIDE_APU", "hideapu")
 
+        #Custom options
+        self.check_environment("PROTON_USE_WOW64", "wow64")
+
         if "nofsync" in self.compat_config:
             self.env.pop("WINEFSYNC", "")
         else:
