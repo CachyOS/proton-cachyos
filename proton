@@ -1791,6 +1791,7 @@ class Session:
         if "wined3d11" in self.compat_config:
             self.compat_config.add("wined3d")
 
+        self.check_environment("PROTON_USE_WOW64", "wow64")
         if not self.check_environment("PROTON_USE_WINED3D", "wined3d"):
             self.check_environment("PROTON_USE_WINED3D11", "wined3d")
         self.check_environment("PROTON_DXVK_D3D8", "dxvkd3d8")

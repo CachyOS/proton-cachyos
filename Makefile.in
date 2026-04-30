@@ -1848,6 +1848,14 @@ $(USER_SETTINGS_PY_TARGET): $(addprefix $(SRCDIR)/,user_settings.sample.py)
 DIST_COPY_TARGETS := $(FILELOCK_TARGET) $(PROTON_PY_TARGET) \
                      $(PROTON37_TRACKED_FILES_TARGET) $(USER_SETTINGS_PY_TARGET)
 
+ifeq ($(ENABLE_WOW64),1)
+USER_SETTINGS_WOW64_PY_TARGET := $(addprefix $(DST_BASE)/,user_settings.py)
+$(USER_SETTINGS_WOW64_PY_TARGET): | $(DST_DIR)
+	echo "user_settings = {\"PROTON_USE_WOW64\": \"1\"}" > $@
+
+all-dist: $(USER_SETTINGS_WOW64_PY_TARGET)
+endif
+
 $(DIST_COPY_TARGETS): | $(DST_DIR)
 	cp -a $(SRCDIR)/$(notdir $@) $@
 
