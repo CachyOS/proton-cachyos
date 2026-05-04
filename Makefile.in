@@ -164,6 +164,11 @@ LIBSOUP_MESON_ARGS = \
 	-Dautobahn=disabled \
 	-Dtls_check=false
 
+LIBSOUP_MESON_ARGS += \
+	-Dntlm=disabled \
+	-Dintrospection=disabled \
+	-Dtests=false
+
 $(eval $(call rules-source,libsoup,$(SRCDIR)/libsoup))
 $(eval $(call rules-meson,libsoup,i386,unix))
 $(eval $(call rules-meson,libsoup,x86_64,unix))
