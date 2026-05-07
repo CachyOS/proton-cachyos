@@ -1280,6 +1280,7 @@ endif # WITHOUT_NVIDIA_LIBS
 
 ifneq ($(WITHOUT_VKLAYERS),1)
 include $(SRC)/vklayers/build-dxvk-nvapi-vkreflex-layer.mk
+include $(SRC)/vklayers/build-pyroveil.mk
 endif # WITHOUT_VKLAYERS
 
 

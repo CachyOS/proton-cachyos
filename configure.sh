@@ -367,7 +367,7 @@ usage() {
   "$1" "                            Values: all | dxvk-sarek | d7vk | dxvk-low-latency | vkd3d-low-latency"
   "$1" ""
   "$1" "    --without-vklayers=<list> Comma-separated list of vulkan layers to disable, or 'all' to disable everything."
-  "$1" "                              Values: all | dxvk-nvapi-vkreflex-layer"
+  "$1" "                              Values: all | dxvk-nvapi-vkreflex-layer | pyroveil"
   "$1" ""
   "$1" "    --without-steamrt-depends Disable the inclusion of additonal dependencies for SteamRT4,"
   "$1" "                              useful for debugging and native builds without the Steam Runtime"
