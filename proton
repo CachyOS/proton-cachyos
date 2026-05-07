@@ -1992,6 +1992,13 @@ class Session:
         if "vkreflex" in self.compat_config and "disablenvapi" not in self.compat_config and utilities.is_driver_loaded({'nvidia'}):
             utilities.add_vk_implicit_layer(prepend_to_env_str, self.env, g_proton.dist_dir + "share/dxvk-nvapi-vkreflex-layer/implicit_layer.d")
 
+        self.check_environment("PYROVEIL", "pyroveil")
+        if "pyroveil" in self.compat_config:
+            utilities.add_vk_implicit_layer(prepend_to_env_str, self.env, g_proton.dist_dir + "share/pyroveil/implicit_layer.d")
+            pyroveil_config = self.env.get("PYROVEIL_CONFIG", "")
+            if pyroveil_config:
+                self.env["PYROVEIL_CONFIG"] = pyroveil_config if os.path.isabs(pyroveil_config) else g_proton.dist_dir + "share/pyroveil/hacks/" + pyroveil_config
+
         if "nofsync" in self.compat_config:
             self.env.pop("WINEFSYNC", "")
             self.env["WINEFSYNC"] = "0"
