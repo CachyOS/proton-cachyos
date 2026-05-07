@@ -140,3 +140,6 @@
 [submodule "extras/vkd3d-low-latency"]
 	path = extras/vkd3d-low-latency
 	url = https://github.com/netborg-afps/vkd3d-low-latency.git
+[submodule "vklayers/pyroveil"]
+	path = vklayers/pyroveil
+	url = https://github.com/HansKristian-Work/pyroveil.git
