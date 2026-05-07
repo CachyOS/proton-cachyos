@@ -1284,6 +1284,7 @@ endif # WITHOUT_NVIDIA_LIBS
 ##
 
 include $(SRC)/vklayers/build-dxvk-nvapi-vkreflex-layer.mk
+include $(SRC)/vklayers/build-pyroveil.mk
 
 
 ##
