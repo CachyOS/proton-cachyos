@@ -1,0 +1,20 @@
+##
+## libwebp
+##
+
+LIBWEBP_CMAKE_ARGS := \
+	-DBUILD_SHARED_LIBS=ON \
+	-DWEBP_BUILD_ANIM_UTILS=OFF \
+	-DWEBP_BUILD_CWEBP=OFF \
+	-DWEBP_BUILD_DWEBP=OFF \
+	-DWEBP_BUILD_EXTRAS=OFF \
+	-DWEBP_BUILD_GIF2WEBP=OFF \
+	-DWEBP_BUILD_IMG2WEBP=OFF \
+	-DWEBP_BUILD_VWEBP=OFF \
+	-DWEBP_BUILD_WEBPINFO=OFF \
+	-DWEBP_BUILD_WEBPMUX=OFF \
+
+$(eval $(call rules-source,libwebp,$(SRCDIR)/steamrtdeps/libwebp))
+$(eval $(call rules-cmake,libwebp,i386,unix))
+
+LIBWEBP_DEPENDENCY := libwebp

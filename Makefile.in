@@ -170,6 +170,13 @@ $(eval $(call rules-source,patches,$(SRCDIR)/patches))
 
 
 ##
+## steamrtdeps
+##
+
+include $(SRC)/steamrtdeps/build-libwebp.mk
+
+
+##
 ## dav1d
 ##
 
