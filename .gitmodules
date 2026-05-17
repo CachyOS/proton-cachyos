@@ -140,6 +140,9 @@
 [submodule "extras/vkd3d-low-latency"]
 	path = extras/vkd3d-low-latency
 	url = https://github.com/netborg-afps/vkd3d-low-latency.git
+[submodule "extras/discord-rpc-bridge"]
+	path = extras/discord-rpc-bridge
+	url = https://github.com/enderice2/rpc-bridge.git
 [submodule "vklayers/pyroveil"]
 	path = vklayers/pyroveil
 	url = https://github.com/HansKristian-Work/pyroveil.git
