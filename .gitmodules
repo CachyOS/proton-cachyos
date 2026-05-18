@@ -143,3 +143,9 @@
 [submodule "vklayers/pyroveil"]
 	path = vklayers/pyroveil
 	url = https://github.com/HansKristian-Work/pyroveil.git
+[submodule "vklayers/Vulkan-Utility-Libraries"]
+	path = vklayers/Vulkan-Utility-Libraries
+	url = https://github.com/KhronosGroup/Vulkan-Utility-Libraries.git
+[submodule "vklayers/low_latency_layer"]
+	path = vklayers/low_latency_layer
+	url = https://github.com/Korthos-Software/low_latency_layer.git
