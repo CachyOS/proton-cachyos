@@ -1277,6 +1277,7 @@ endif # WITHOUT_NVIDIA_LIBS
 
 include $(SRC)/vklayers/build-dxvk-nvapi-vkreflex-layer.mk
 include $(SRC)/vklayers/build-pyroveil.mk
+include $(SRC)/vklayers/build-low_latency_layer.mk
 
 
 ##
