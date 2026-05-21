@@ -1361,6 +1361,11 @@ class CompatData:
                     if file_exists(nvoptix32_dll, follow_symlinks=False):
                         os.unlink(nvoptix32_dll)
 
+                if os.path.exists(g_proton.lib_dir + "wine/discord-rpc-bridge/bridge.exe"):
+                    makedirs(self.prefix_dir + "drive_c/windows/system32/discord/")
+                    try_copy(g_proton.lib_dir + "wine/discord-rpc-bridge/bridge.exe", "drive_c/windows/system32/discord/bridge.exe",
+                            prefix=self.prefix_dir, track_file=tracked_files, link_debug=True)
+
                 # Try to detect known DLLs that ship with the NVIDIA Linux Driver
                 # and add them into the prefix
                 if g_session.nvidia_wine_dll_dir:
