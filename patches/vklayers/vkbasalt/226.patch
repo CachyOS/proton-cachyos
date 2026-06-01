@@ -1,0 +1,286 @@
+From a9f70c9e9f37687e44ffa374866063c8a420d73a Mon Sep 17 00:00:00 2001
+From: wheaney <42350981+wheaney@users.noreply.github.com>
+Date: Fri, 22 Sep 2023 22:59:10 -0700
+Subject: [PATCH 1/2] Add support for runtime uniform variables, using shared
+ memory for cross-process communication
+
+---
+ src/reshade_uniforms.cpp | 65 ++++++++++++++++++++++++++++++++++++++++
+ src/reshade_uniforms.hpp | 14 +++++++++
+ 2 files changed, 79 insertions(+)
+
+diff --git a/src/reshade_uniforms.cpp b/src/reshade_uniforms.cpp
+index b66670d8..2c7cee66 100644
+--- a/src/reshade_uniforms.cpp
++++ b/src/reshade_uniforms.cpp
+@@ -4,11 +4,14 @@
+ #include <ctime>
+ #include <cstdlib>
+ #include <cmath>
++#include <sys/shm.h>
+ 
+ #include <algorithm>
+ 
+ #include "logger.hpp"
+ 
++const std::string defaultRuntimePathnamePrefix = "/tmp/shader_runtime_";
++
+ namespace vkBasalt
+ {
+     void enumerateReshadeUniforms(reshadefx::module module)
+@@ -76,6 +79,10 @@ namespace vkBasalt
+             {
+                 uniforms.push_back(std::shared_ptr<ReshadeUniform>(new DepthUniform(uniform)));
+             }
++            else if (!source.empty())
++            {
++                uniforms.push_back(std::shared_ptr<ReshadeUniform>(new RuntimeUniform(uniform)));
++            }
+         }
+         return uniforms;
+     }
+@@ -380,4 +387,62 @@ namespace vkBasalt
+     DepthUniform::~DepthUniform()
+     {
+     }
++
++    //////////////////////////////////////////////////////////////////////////////////////////////////////////
++    RuntimeUniform::RuntimeUniform(reshadefx::uniform_info uniformInfo)
++    {
++        auto source = std::find_if(uniformInfo.annotations.begin(), uniformInfo.annotations.end(), [](const auto& a) { return a.name == "source"; });
++        defaultValue = 0.0;
++        if (auto defaultValueAnnotation =
++                std::find_if(uniformInfo.annotations.begin(), uniformInfo.annotations.end(), [](const auto& a) { return a.name == "defaultValue"; });
++            defaultValueAnnotation != uniformInfo.annotations.end())
++        {
++            defaultValue = defaultValueAnnotation->type.is_floating_point() ? defaultValueAnnotation->value.as_float[0] : 0.0f;
++        }
++
++        if (auto pathnameAnnotation =
++                std::find_if(uniformInfo.annotations.begin(), uniformInfo.annotations.end(), [](const auto& a) { return a.name == "pathname"; });
++            pathnameAnnotation != uniformInfo.annotations.end())
++        {
++            pathname = new char[pathnameAnnotation->value.string_data.length() + 1];
++            strcpy(pathname, pathnameAnnotation->value.string_data.c_str());
++        }
++        else
++        {
++            pathname = new char[defaultRuntimePathnamePrefix.length() + source->value.string_data.length() + 1];
++            std::string tmp_pathname = defaultRuntimePathnamePrefix + source->value.string_data;
++            strcpy(pathname, tmp_pathname.c_str());
++        }
++
++        projId = 0;
++        if (auto projIdAnnotation =
++                std::find_if(uniformInfo.annotations.begin(), uniformInfo.annotations.end(), [](const auto& a) { return a.name == "projId"; });
++            projIdAnnotation != uniformInfo.annotations.end())
++        {
++            projId = projIdAnnotation->value.as_int[0];
++        }
++        shmKey = ftok(pathname, projId);
++
++        Logger::debug("Found runtime uniform: " + std::to_string(defaultValue) + " " + pathname + " " + std::to_string(projId) + "\n");
++        offset = uniformInfo.offset;
++        size   = uniformInfo.size;
++    }
++    void RuntimeUniform::update(void* mapedBuffer)
++    {
++        float *value = &defaultValue;
++        bool needs_detach = false;
++        if (shmKey != -1) {
++            int shmId = shmget(shmKey,sizeof(*value),0444); // read-only
++            if (shmId != -1) {
++                value = (float*) shmat(shmId,(void*)0,0);
++                needs_detach = true;
++            }
++        }
++        std::memcpy((uint8_t*) mapedBuffer + offset, value, sizeof(*value));
++        if (needs_detach)
++            shmdt(value);
++    }
++    RuntimeUniform::~RuntimeUniform()
++    {
++    }
+ } // namespace vkBasalt
+diff --git a/src/reshade_uniforms.hpp b/src/reshade_uniforms.hpp
+index a41b28c9..16f698c7 100644
+--- a/src/reshade_uniforms.hpp
++++ b/src/reshade_uniforms.hpp
+@@ -139,6 +139,20 @@ namespace vkBasalt
+         void virtual update(void* mapedBuffer) override;
+         virtual ~DepthUniform();
+     };
++
++    class RuntimeUniform : public ReshadeUniform
++    {
++    public:
++        RuntimeUniform(reshadefx::uniform_info uniformInfo);
++        void virtual update(void* mapedBuffer) override;
++        virtual ~RuntimeUniform();
++
++    private:
++        float defaultValue;
++        char* pathname;
++        int projId;
++        key_t shmKey;
++    };
+ } // namespace vkBasalt
+ 
+ #endif // RESHADE_UNIFORMS_HPP_INCLUDED
+
+From 5ea30829d37cc0dfc04fd3c70e73231ca32d56ec Mon Sep 17 00:00:00 2001
+From: wheaney <42350981+wheaney@users.noreply.github.com>
+Date: Wed, 4 Oct 2023 09:21:44 -0700
+Subject: [PATCH 2/2] Add type awareness to runtime uniforms, allowing for
+ types like bool, float3, etc...
+
+---
+ src/reshade_uniforms.cpp | 90 +++++++++++++++++++++++++++++++---------
+ src/reshade_uniforms.hpp |  4 +-
+ 2 files changed, 74 insertions(+), 20 deletions(-)
+
+diff --git a/src/reshade_uniforms.cpp b/src/reshade_uniforms.cpp
+index 2c7cee66..32bbc2bf 100644
+--- a/src/reshade_uniforms.cpp
++++ b/src/reshade_uniforms.cpp
+@@ -7,6 +7,7 @@
+ #include <sys/shm.h>
+ 
+ #include <algorithm>
++#include <variant>
+ 
+ #include "logger.hpp"
+ 
+@@ -391,15 +392,10 @@ namespace vkBasalt
+     //////////////////////////////////////////////////////////////////////////////////////////////////////////
+     RuntimeUniform::RuntimeUniform(reshadefx::uniform_info uniformInfo)
+     {
++        offset = uniformInfo.offset;
++        size   = uniformInfo.size;
++        type   = uniformInfo.type;
+         auto source = std::find_if(uniformInfo.annotations.begin(), uniformInfo.annotations.end(), [](const auto& a) { return a.name == "source"; });
+-        defaultValue = 0.0;
+-        if (auto defaultValueAnnotation =
+-                std::find_if(uniformInfo.annotations.begin(), uniformInfo.annotations.end(), [](const auto& a) { return a.name == "defaultValue"; });
+-            defaultValueAnnotation != uniformInfo.annotations.end())
+-        {
+-            defaultValue = defaultValueAnnotation->type.is_floating_point() ? defaultValueAnnotation->value.as_float[0] : 0.0f;
+-        }
+-
+         if (auto pathnameAnnotation =
+                 std::find_if(uniformInfo.annotations.begin(), uniformInfo.annotations.end(), [](const auto& a) { return a.name == "pathname"; });
+             pathnameAnnotation != uniformInfo.annotations.end())
+@@ -423,24 +419,80 @@ namespace vkBasalt
+         }
+         shmKey = ftok(pathname, projId);
+ 
+-        Logger::debug("Found runtime uniform: " + std::to_string(defaultValue) + " " + pathname + " " + std::to_string(projId) + "\n");
+-        offset = uniformInfo.offset;
+-        size   = uniformInfo.size;
++        if (auto defaultValueAnnotation =
++                std::find_if(uniformInfo.annotations.begin(), uniformInfo.annotations.end(), [](const auto& a) { return a.name == "defaultValue"; });
++            defaultValueAnnotation != uniformInfo.annotations.end())
++        {
++            reshadefx::constant value = defaultValueAnnotation->value;
++            if (type.is_floating_point()) {
++                defaultValue = std::vector<float>(value.as_float, value.as_float + type.components());
++                Logger::debug(std::string("Found float* runtime uniform: ") + pathname + " " + std::to_string(projId) +
++                    " of size " + std::to_string(type.components()) + "\n");
++            } else if (type.is_boolean()) {
++                defaultValue = std::vector<uint32_t>(value.as_uint, value.as_uint + type.components());
++                Logger::debug(std::string("Found bool* runtime uniform: ") + pathname + " " + std::to_string(projId) +
++                    " of size " + std::to_string(type.components()) + "\n");
++            } else if (type.is_numeric()) {
++                if (type.is_signed()) {
++                    defaultValue = std::vector<int32_t>(value.as_int, value.as_int + type.components());
++                    Logger::debug(std::string("Found int32_t* runtime uniform: ") + pathname + " " + std::to_string(projId) +
++                        " of size " + std::to_string(type.components()) + "\n");
++                } else {
++                    defaultValue = std::vector<uint32_t>(value.as_uint, value.as_uint + type.components());
++                    Logger::debug(std::string("Found uint32_t* runtime uniform: ") + pathname + " " + std::to_string(projId) +
++                        " of size " + std::to_string(type.components()) + "\n");
++                }
++            } else {
++                Logger::err("Tried to create a runtime uniform variable of an unsupported type");
++            }
++        }
+     }
+     void RuntimeUniform::update(void* mapedBuffer)
+     {
+-        float *value = &defaultValue;
+-        bool needs_detach = false;
++        std::variant<std::monostate, std::vector<float>, std::vector<int32_t>, std::vector<uint32_t>, bool> value;
+         if (shmKey != -1) {
+-            int shmId = shmget(shmKey,sizeof(*value),0444); // read-only
++            int shmId = shmget(shmKey,size,0444); // read-only
+             if (shmId != -1) {
+-                value = (float*) shmat(shmId,(void*)0,0);
+-                needs_detach = true;
++                if (type.is_floating_point()) {
++                    float* raw_ptr = static_cast<float*>(shmat(shmId, nullptr, 0));
++                    value = std::vector<float>(raw_ptr, raw_ptr + type.components());
++                    shmdt(raw_ptr);
++                } else if (type.is_boolean()) {
++                    bool* raw_ptr = static_cast<bool*>(shmat(shmId, nullptr, 0));
++
++                    // convert to a uint32_t vector, that's how the reshade uniform code understands booleans
++                    std::vector<uint32_t> bools_as_uint;
++                    for(size_t i = 0; i < type.components(); ++i) {
++                        bools_as_uint.push_back(static_cast<uint32_t>(raw_ptr[i]));
++                    }
++                    value = bools_as_uint;
++                    shmdt(raw_ptr);
++                } else if (type.is_numeric()) {
++                    if (type.is_signed()) {
++                        int32_t* raw_ptr = static_cast<int32_t*>(shmat(shmId, nullptr, 0));
++                        value = std::vector<int32_t>(raw_ptr, raw_ptr + type.components());
++                        shmdt(raw_ptr);
++                    } else {
++                        uint32_t* raw_ptr = static_cast<uint32_t*>(shmat(shmId, nullptr, 0));
++                        value = std::vector<uint32_t>(raw_ptr, raw_ptr + type.components());
++                        shmdt(raw_ptr);
++                    }
++                }
+             }
+         }
+-        std::memcpy((uint8_t*) mapedBuffer + offset, value, sizeof(*value));
+-        if (needs_detach)
+-            shmdt(value);
++        if (std::holds_alternative<std::monostate>(value)) {
++            value = defaultValue;
++        }
++        if (std::holds_alternative<std::vector<float>>(value)) {
++            std::vector<float>& vec = std::get<std::vector<float>>(value);
++            std::memcpy((uint8_t*) mapedBuffer + offset, vec.data(), vec.size() * sizeof(float));
++        } else if (std::holds_alternative<std::vector<int32_t>>(value)) {
++            std::vector<int32_t>& vec = std::get<std::vector<int32_t>>(value);
++            std::memcpy((uint8_t*) mapedBuffer + offset, vec.data(), vec.size() * sizeof(int32_t));
++        } else if (std::holds_alternative<std::vector<uint32_t>>(value)) {
++            std::vector<uint32_t>& vec = std::get<std::vector<uint32_t>>(value);
++            std::memcpy((uint8_t*) mapedBuffer + offset, vec.data(), vec.size() * sizeof(uint32_t));
++        }
+     }
+     RuntimeUniform::~RuntimeUniform()
+     {
+diff --git a/src/reshade_uniforms.hpp b/src/reshade_uniforms.hpp
+index 16f698c7..2d9d2222 100644
+--- a/src/reshade_uniforms.hpp
++++ b/src/reshade_uniforms.hpp
+@@ -7,6 +7,7 @@
+ #include <vector>
+ #include <chrono>
+ #include <memory>
++#include <variant>
+ 
+ #include "vulkan_include.hpp"
+ 
+@@ -148,7 +149,8 @@ namespace vkBasalt
+         virtual ~RuntimeUniform();
+ 
+     private:
+-        float defaultValue;
++        reshadefx::type type;
++        std::variant<std::monostate, std::vector<float>, std::vector<int32_t>, std::vector<uint32_t>, bool> defaultValue;
+         char* pathname;
+         int projId;
+         key_t shmKey;
