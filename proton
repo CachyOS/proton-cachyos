@@ -2014,6 +2014,10 @@ class Session:
         if "lowlatencylayer" in self.compat_config:
             utilities.add_vk_implicit_layer(prepend_to_env_str, self.env, g_proton.dist_dir + "share/low_latency_layer/implicit_layer.d")
 
+        self.check_environment("ENABLE_VKBASALT", "vkbasalt")
+        if "vkbasalt" in self.compat_config:
+            utilities.add_vk_implicit_layer(prepend_to_env_str, self.env, g_proton.dist_dir + "share/vkbasalt/implicit_layer.d")
+
         self.check_environment("PYROVEIL", "pyroveil")
         if "pyroveil" in self.compat_config:
             utilities.add_vk_implicit_layer(prepend_to_env_str, self.env, g_proton.dist_dir + "share/pyroveil/implicit_layer.d")
