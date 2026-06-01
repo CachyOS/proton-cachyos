@@ -1,0 +1,107 @@
+From f98a8cad732e86f7fdff9e7f5d1d6491ff2ce628 Mon Sep 17 00:00:00 2001
+From: pchome <pchome@users.noreply.github.com>
+Date: Mon, 4 Sep 2023 22:17:58 +0300
+Subject: [PATCH] add VKBASALT_CONFIG support
+
+Similar to e.g. `DXVK_CONFIG`.
+Uses `;` as the option separator.
+
+Example: `VKBASALT_CONFIG='effects=smaa:fxaa:cas;toggleKey=End'`
+---
+ README.md      |  4 ++++
+ src/config.cpp | 30 ++++++++++++++++++++++++++++--
+ src/config.hpp |  1 +
+ 3 files changed, 33 insertions(+), 2 deletions(-)
+
+diff --git a/README.md b/README.md
+index f57b63c3..c884e696 100644
+--- a/README.md
++++ b/README.md
+@@ -91,6 +91,10 @@ The config file will be searched for in the following locations:
+ 
+ If you want to make changes for one game only, you can create a file named `vkBasalt.conf` in the working directory of the game and change the values there.
+ 
++#### Quick override
++To override some of the default config options the `VKBASALT_CONFIG` env var can be used, e.g. `VKBASALT_CONFIG='effects=fxaa:cas;casSharpness=1.0'`.
++The separator is `;`
++
+ #### Reshade Fx shaders
+ 
+ To run reshade fx shaders e.g. shaders from the [reshade repo](https://github.com/crosire/reshade-shaders), you have to set `reshadeTexturePath` and `reshadeIncludePath` to the matching dirctories from the repo. To then use a specific shader you need to set a custom effect name to the shader path and then add that effect name to `effects` like every other effect.
+diff --git a/src/config.cpp b/src/config.cpp
+index 129fe730..bedcf7d7 100644
+--- a/src/config.cpp
++++ b/src/config.cpp
+@@ -12,6 +12,10 @@ namespace vkBasalt
+         const char* tmpConfEnv       = std::getenv("VKBASALT_CONFIG_FILE");
+         std::string customConfigFile = tmpConfEnv ? std::string(tmpConfEnv) : "";
+ 
++        // Custom config string
++        const char* tmpConfStringEnv   = std::getenv("VKBASALT_CONFIG");
++        std::string customConfigString = tmpConfStringEnv ? std::string(tmpConfStringEnv) : "";
++
+         // User config file path
+         const char* tmpHomeEnv     = std::getenv("XDG_DATA_HOME");
+         std::string userConfigFile = tmpHomeEnv ? std::string(tmpHomeEnv) + "/vkBasalt/vkBasalt.conf"
+@@ -32,6 +36,7 @@ namespace vkBasalt
+             std::string(DATADIR) + "/vkBasalt/vkBasalt.conf",    // legacy system-wide config
+         };
+ 
++        auto hasConfigFile = false;
+         for (const auto& cFile : configPath)
+         {
+             std::ifstream configFile(cFile);
+@@ -39,11 +44,21 @@ namespace vkBasalt
+                 continue;
+ 
+             Logger::info("config file: " + cFile);
++            hasConfigFile = true;
+             readConfigFile(configFile);
+-            return;
++            break;
++        }
++
++        if (!hasConfigFile)
++        {
++            Logger::err("no good config file");
+         }
+ 
+-        Logger::err("no good config file");
++        if (!customConfigString.empty())
++        {
++            Logger::info("config string: " + customConfigString);
++            readConfigFromEnv(customConfigString);
++        }
+     }
+ 
+     Config::Config(const Config& other)
+@@ -61,6 +76,17 @@ namespace vkBasalt
+         }
+     }
+ 
++    void Config::readConfigFromEnv(std::string configLine)
++    {
++        std::string line;
++        std::stringstream stream(configLine);
++
++        while (std::getline(stream, line, ';'))
++        {
++            readConfigLine(line);
++        }
++    }
++
+     void Config::readConfigLine(std::string line)
+     {
+         std::string key;
+diff --git a/src/config.hpp b/src/config.hpp
+index 016d2fe2..d9054c20 100644
+--- a/src/config.hpp
++++ b/src/config.hpp
+@@ -31,6 +31,7 @@ namespace vkBasalt
+ 
+         void readConfigLine(std::string line);
+         void readConfigFile(std::ifstream& stream);
++        void readConfigFromEnv(std::string configLine);
+ 
+         void parseOption(const std::string& option, int32_t& result);
+         void parseOption(const std::string& option, float& result);
