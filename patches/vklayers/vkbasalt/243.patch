@@ -1,0 +1,23 @@
+From 053a5c81fefae62f1023ef51e3c1a17a54ec0ae3 Mon Sep 17 00:00:00 2001
+From: Tiago de Paula <tiagodepalves@gmail.com>
+Date: Sun, 29 Dec 2024 02:36:06 -0300
+Subject: [PATCH] fix: crash on cast from float to float in reshade shaders
+
+Allow redudant cast by not generation instructions for it.
+---
+ src/reshade/effect_codegen_spirv.cpp | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/reshade/effect_codegen_spirv.cpp b/src/reshade/effect_codegen_spirv.cpp
+index e53c3cce..0e9d008b 100644
+--- a/src/reshade/effect_codegen_spirv.cpp
++++ b/src/reshade/effect_codegen_spirv.cpp
+@@ -1138,7 +1138,7 @@ class codegen_spirv final : public codegen
+ 						.add(emit_constant(op.from, 0))
+ 						.result;
+ 				}
+-				else
++				else if (op.to != op.from)
+ 				{
+ 					spv::Op spv_op = spv::OpNop;
+ 
