@@ -2197,6 +2197,8 @@ if __name__ == "__main__":
         if "SYSTEM_PATH" in os.environ:
             os.environ["PATH"] = os.environ["SYSTEM_PATH"]
             log("Restoring PATH to: " + str(os.environ["PATH"]))
+    # prepend the system's implicit-layer.d path, because we are running outside of SteamRT
+    append_to_env_str(os.environ, "VK_IMPLICIT_LAYER_PATH", "/usr/share/vulkan/implicit_layer.d/", ":")
 
     g_proton = Proton(os.path.dirname(sys.argv[0]))
 
