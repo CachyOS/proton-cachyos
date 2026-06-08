@@ -32,11 +32,11 @@ jobs:
       id: version
       shell: bash
       run: |
-        tag_abbrev=$(git describe --tags --exclude '*nightly*' --abbrev=0)
+        tag_abbrev=$(git describe --tags --abbrev=0)
         echo "tag_abbrev=$tag_abbrev" >> $GITHUB_OUTPUT
         echo "tag_offset=$(git rev-list $tag_abbrev..HEAD --count)" >> $GITHUB_OUTPUT
         echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
-        echo "full_desc=$(git describe --long --tags --exclude '*nightly*')" >> $GITHUB_OUTPUT
+        echo "full_desc=$(git describe --long --tags)" >> $GITHUB_OUTPUT
         echo "branch=${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}" >> $GITHUB_OUTPUT
 
   build:
@@ -116,64 +116,4 @@ jobs:
     with:
       name: ${{ matrix.name }}
       runner: ${{ matrix.runner != '' && matrix.runner || 'ubuntu-24.04' }}
-      continue: false
-
-  nightly:
-    name: Nightly
-    needs: [version, build, test]
-    runs-on: ubuntu-slim
-    outputs:
-      title: ${{ steps.title.outputs.title }}
-    steps:
-    - uses: actions/checkout@v6
-      with:
-        fetch-depth: 0
-        fetch-tags: true
-    - name: Title
-      id: title
-      shell: bash
-      run: |
-        git fetch origin +refs/tags/*:refs/tags/*
-        python -c "v='${{ needs.version.outputs.full_desc }}'.split('-');print('title='+'-'.join([v[0],v[1],'nightly']))" >> "$GITHUB_OUTPUT"
-    - name: Delete
-      id: delete
-      shell: bash
-      run: >-
-        gh
-        release delete
-        ${{ steps.title.outputs.title }}
-        --cleanup-tag
-        --yes
-        || true
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    - name: Create
-      id: create
-      shell: bash
-      run: >-
-        gh
-        release create
-        ${{ steps.title.outputs.title }}
-        --prerelease
-        --latest=false
-        --title "Development ${{ steps.title.outputs.title }}"
-        --notes "Version: ${{ needs.version.outputs.full_desc }}"
-        --generate-notes
-        --notes-start-tag ${{ needs.version.outputs.tag_abbrev }}
-        --target ${{ github.ref_name }}
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  upload:
-    name: Upload
-    needs: [version, nightly]
-    strategy:
-      matrix:
-        include:
-          - name: proton-${{ needs.version.outputs.full_desc }}-x86_64
-          - name: proton-${{ needs.version.outputs.full_desc }}-x86_64_v3
-          - name: proton-${{ needs.version.outputs.full_desc }}-arm64
-    uses: ./.github/workflows/_job_upload.yml
-    with:
-      version: ${{ needs.nightly.outputs.title }}
-      name: ${{ matrix.name }}
+      continue: true
