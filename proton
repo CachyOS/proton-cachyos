@@ -2060,6 +2060,19 @@ class Session:
                             self.log_file.write(f"WARNING: Low /proc/sys/vm/max_map_count: {max_map_count} will prevent some games from working\n")
 
                 self.log_file.write("======================\n")
+                self.log_file.write("Inherited environment\n")
+                for var in (name for name in (
+                    "MANGOHUD",
+                    "PROTON_DLSS_UPGRADE",
+                    "PROTON_XESS_UPGRADE",
+                    "PROTON_FSR3_UPGRADE",
+                    "PROTON_FSR4_UPGRADE",
+                    "PROTON_FSR4_RDNA3_UPGRADE",
+                    "DXVK_FILTER_DEVICE_NAME",
+
+                ) if name in self.env):
+                    self.log_file.write(var + ": " + self.env[var] + "\n")
+                self.log_file.write("======================\n")
                 self.log_file.flush()
             else:
                 self.env["WINEDEBUG"] = "-all"
