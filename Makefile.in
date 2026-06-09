@@ -1089,7 +1089,8 @@ $(eval $(call rules-meson,dxvk,i386,windows))
 $(eval $(call rules-meson,dxvk,x86_64,windows))
 $(eval $(call rules-meson,dxvk,arm64ec,windows))
 
-$(OBJ)/.dxvk-post-source:
+$(OBJ)/.dxvk-post-source: patches-source
+	$(foreach p,$(shell find $(PATCHES_SRC)/dxvk/ -name "*.patch" | sort),patch -d $(DXVK_SRC) -Np1 -i $(p) &&) true
 	sed -re 's#@VCS_TAG@#$(shell git -C $(SRCDIR)/dxvk describe --always --abbrev=15 --dirty=0 || echo deadbeef)#' \
 	    $(SRCDIR)/dxvk/version.h.in > $(DXVK_SRC)/version.h.in
 	mkdir -p $(DST_LIBDIR)/wine/dxvk
