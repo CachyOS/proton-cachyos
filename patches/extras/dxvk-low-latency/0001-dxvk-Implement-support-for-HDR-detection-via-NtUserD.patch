@@ -1,0 +1,399 @@
+From 477c16a58ee49afbebf83a448eeb699f738b7253 Mon Sep 17 00:00:00 2001
+From: Etaash Mathamsetty
+ <45927311+Etaash-mathamsetty@users.noreply.github.com>
+Date: Mon, 9 Mar 2026 02:29:09 -0500
+Subject: [PATCH] [dxvk] Implement support for HDR detection via
+ NtUserDisplayConfigGetDeviceInfo.
+
+---
+ src/dxgi/dxgi_monitor.cpp           |  3 +-
+ src/dxgi/dxgi_monitor.h             |  2 +-
+ src/dxgi/dxgi_options.cpp           |  7 +++
+ src/dxgi/dxgi_options.h             |  3 ++
+ src/dxgi/dxgi_output.cpp            | 19 +++++---
+ src/dxgi/dxgi_swapchain.cpp         | 15 ++++++-
+ src/dxgi/dxgi_swapchain.h           |  1 +
+ src/wsi/glfw/wsi_window_glfw.cpp    |  5 +++
+ src/wsi/sdl2/wsi_monitor_sdl2.cpp   |  5 +++
+ src/wsi/sdl3/wsi_monitor_sdl3.cpp   |  5 +++
+ src/wsi/win32/wsi_monitor_win32.cpp | 69 +++++++++++++++++++++++++++++
+ src/wsi/win32/wsi_platform_win32.h  |  2 +
+ src/wsi/wsi_edid.h                  |  2 +
+ src/wsi/wsi_monitor.h               |  3 ++
+ src/wsi/wsi_platform.cpp            |  4 ++
+ src/wsi/wsi_platform.h              |  2 +
+ 16 files changed, 135 insertions(+), 12 deletions(-)
+
+diff --git a/src/dxgi/dxgi_monitor.cpp b/src/dxgi/dxgi_monitor.cpp
+index 842fb3fc0..70c844442 100644
+--- a/src/dxgi/dxgi_monitor.cpp
++++ b/src/dxgi/dxgi_monitor.cpp
+@@ -6,7 +6,6 @@ namespace dxvk {
+   : m_parent(pParent)
+   , m_options(options)
+   , m_globalColorSpace(DefaultColorSpace()) {
+-
+   }
+ 
+ 
+@@ -121,4 +120,4 @@ namespace dxvk {
+     }
+   }
+   
+-}
+\ No newline at end of file
++}
+diff --git a/src/dxgi/dxgi_monitor.h b/src/dxgi/dxgi_monitor.h
+index 3a31a23cb..3a492b516 100644
+--- a/src/dxgi/dxgi_monitor.h
++++ b/src/dxgi/dxgi_monitor.h
+@@ -96,4 +96,4 @@ namespace dxvk {
+     return wsiMode;
+   }
+ 
+-}
+\ No newline at end of file
++}
+diff --git a/src/dxgi/dxgi_options.cpp b/src/dxgi/dxgi_options.cpp
+index 333cb4f77..9b76c50e6 100644
+--- a/src/dxgi/dxgi_options.cpp
++++ b/src/dxgi/dxgi_options.cpp
+@@ -119,9 +119,16 @@ namespace dxvk {
+     }
+ 
+     this->enableHDR = config.getOption<bool>("dxgi.enableHDR", env::getEnvVar("DXVK_HDR") == "1");
++    this->disableHDR = config.getOption<bool>("dxgi.disableHDR", env::getEnvVar("DXVK_NO_HDR") == "1");
+ 
+     bool enableUe4Workarounds = config.getOption<bool>("dxgi.enableUe4Workarounds", false);
+ 
++    if (isHDRDisallowed(enableUe4Workarounds))
++    {
++      Logger::info("HDR was force disabled as a UE4 DX11 game was detected.");
++      this->disableHDR = true;
++    }
++
+     if (this->enableHDR && isHDRDisallowed(enableUe4Workarounds)) {
+       Logger::info("HDR was configured to be enabled, but has been force disabled as a UE4 DX11 game was detected.");
+       this->enableHDR = false;
+diff --git a/src/dxgi/dxgi_options.h b/src/dxgi/dxgi_options.h
+index 464e4d27e..56671786d 100644
+--- a/src/dxgi/dxgi_options.h
++++ b/src/dxgi/dxgi_options.h
+@@ -46,6 +46,9 @@ namespace dxvk {
+     /// Enable HDR
+     bool enableHDR;
+ 
++    /// Disable HDR (due to workarounds)
++    bool disableHDR;
++
+     /// Enable support for dummy composition swapchains
+     bool enableDummyCompositionSwapchain;
+ 
+diff --git a/src/dxgi/dxgi_output.cpp b/src/dxgi/dxgi_output.cpp
+index 8814f5cb0..bb0af102e 100644
+--- a/src/dxgi/dxgi_output.cpp
++++ b/src/dxgi/dxgi_output.cpp
+@@ -232,6 +232,9 @@ namespace dxvk {
+       return E_FAIL;
+     }
+ 
++    const DxgiOptions* options = m_factory->GetOptions();
++    bool hdrEnabled = wsi::supportsHDR(m_monitor) && !options->disableHDR;
++
+     pDesc->AttachedToDesktop     = 1;
+     pDesc->Rotation              = DXGI_MODE_ROTATION_UNSPECIFIED;
+     pDesc->Monitor               = m_monitor;
+@@ -240,12 +243,9 @@ namespace dxvk {
+     // (HDR) if the user has the HDR setting enabled in Windows.
+     // Games can still punt into HDR mode by using CheckColorSpaceSupport
+     // and SetColorSpace1.
+-    //
+-    // We have no way of checking the actual Windows colorspace as the
+-    // only public method for this *is* DXGI which we are re-implementing.
+-    // So we just pick our color space based on the DXVK_HDR env var
+-    // and the punting from SetColorSpace1.
+-    pDesc->ColorSpace            = m_monitorInfo->CurrentColorSpace();
++    pDesc->ColorSpace            = (hdrEnabled) ?
++                                    DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020 :
++                                    m_monitorInfo->CurrentColorSpace();
+     pDesc->RedPrimary[0]         = m_metadata.redPrimary[0];
+     pDesc->RedPrimary[1]         = m_metadata.redPrimary[1];
+     pDesc->GreenPrimary[0]       = m_metadata.greenPrimary[0];
+@@ -658,6 +658,9 @@ namespace dxvk {
+     wsi::WsiMode activeWsiMode = { };
+     wsi::getCurrentDisplayMode(m_monitor, &activeWsiMode);
+ 
++    const DxgiOptions* options = m_factory->GetOptions();
++    bool hdrSupported = wsi::supportsHDR(m_monitor) && !options->disableHDR;
++
+     // Get the display metadata + colorimetry
+     wsi::WsiEdidData edidData = wsi::getMonitorEdid(m_monitor);
+     std::optional<wsi::WsiDisplayMetadata> metadata = std::nullopt;
+@@ -669,9 +672,11 @@ namespace dxvk {
+     else
+       Logger::err("DXGI: Failed to parse display metadata + colorimetry info, using blank.");
+ 
++    m_metadata.hdrEnabled = hdrSupported;
++
+     // Normalize either the display metadata we got back, or our
+     // blank one to get something sane here.
+-    NormalizeDisplayMetadata(m_monitorInfo->DefaultColorSpace() != DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P709, m_metadata);
++    NormalizeDisplayMetadata(m_monitorInfo->DefaultColorSpace() != DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P709 || hdrSupported, m_metadata);
+ 
+     auto refreshPeriod = computeRefreshPeriod(
+       activeWsiMode.refreshRate.numerator,
+diff --git a/src/dxgi/dxgi_swapchain.cpp b/src/dxgi/dxgi_swapchain.cpp
+index 0aa3fc701..1b70c67e2 100644
+--- a/src/dxgi/dxgi_swapchain.cpp
++++ b/src/dxgi/dxgi_swapchain.cpp
+@@ -45,6 +45,9 @@ namespace dxvk {
+     // Ensure that RGBA16 swap chains are scRGB if supported
+     UpdateColorSpace(m_desc.Format, m_colorSpace);
+ 
++    const DxgiOptions* options = m_factory->GetOptions();
++    m_supportsHDR = wsi::supportsHDR(m_monitor) && !options->disableHDR;
++
+     // Somewhat hacky way to determine whether to forward the
+     // display refresh rate in windowed mode even with a sync
+     // interval of 1.
+@@ -995,7 +998,10 @@ namespace dxvk {
+ 
+     // Only expose HDR10 color space if HDR option is enabled
+     if (ColorSpace == DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020)
+-      return m_factory->GetOptions()->enableHDR && m_presenter->CheckColorSpaceSupport(ColorSpace);
++    {
++      const DxgiOptions* options = m_factory->GetOptions();
++      return (options->enableHDR || m_supportsHDR) && m_presenter->CheckColorSpaceSupport(ColorSpace);
++    }
+ 
+     return false;
+   }
+@@ -1021,8 +1027,13 @@ namespace dxvk {
+ 
+     // If this was a colorspace other than our current one,
+     // punt us into that one on the DXGI output.
++
++    // FIXME: PuntColorSpace doesn't work correctly with HDR detection path, this is a workaround
+     if (SUCCEEDED(hr))
+-      m_monitorInfo->PuntColorSpace(ColorSpace);
++    {
++      if (!m_supportsHDR)
++        m_monitorInfo->PuntColorSpace(ColorSpace);
++    }
+ 
+     return hr;
+   }
+diff --git a/src/dxgi/dxgi_swapchain.h b/src/dxgi/dxgi_swapchain.h
+index 85857ac1c..10eaafc90 100644
+--- a/src/dxgi/dxgi_swapchain.h
++++ b/src/dxgi/dxgi_swapchain.h
+@@ -194,6 +194,7 @@ namespace dxvk {
+     HMONITOR                        m_monitor;
+     bool                            m_monitorHasOutput = true;
+     bool                            m_frameStatisticsDisjoint = true;
++    bool                            m_supportsHDR = false;
+     wsi::DxvkWindowState            m_windowState;
+ 
+     double                          m_frameRateOption = 0.0;
+diff --git a/src/wsi/glfw/wsi_window_glfw.cpp b/src/wsi/glfw/wsi_window_glfw.cpp
+index 2674741b9..eb7158755 100644
+--- a/src/wsi/glfw/wsi_window_glfw.cpp
++++ b/src/wsi/glfw/wsi_window_glfw.cpp
+@@ -169,6 +169,11 @@ namespace dxvk::wsi {
+     return glfwCreateWindowSurface(instance, window, nullptr, pSurface);
+   }
+ 
++  bool GlfwWsiDriver::supportsHDR(HMONITOR hMonitor)
++  {
++    return false;
++  }
++
+ }
+ 
+ #endif
+diff --git a/src/wsi/sdl2/wsi_monitor_sdl2.cpp b/src/wsi/sdl2/wsi_monitor_sdl2.cpp
+index d021346f3..25b49f38c 100644
+--- a/src/wsi/sdl2/wsi_monitor_sdl2.cpp
++++ b/src/wsi/sdl2/wsi_monitor_sdl2.cpp
+@@ -155,6 +155,11 @@ namespace dxvk::wsi {
+     return {};
+   }
+ 
++  bool Sdl2WsiDriver::supportsHDR(HMONITOR hMonitor)
++  {
++    return false;
++  }
++
+ }
+ 
+ #endif
+diff --git a/src/wsi/sdl3/wsi_monitor_sdl3.cpp b/src/wsi/sdl3/wsi_monitor_sdl3.cpp
+index f56884786..5a669d976 100644
+--- a/src/wsi/sdl3/wsi_monitor_sdl3.cpp
++++ b/src/wsi/sdl3/wsi_monitor_sdl3.cpp
+@@ -152,6 +152,11 @@ namespace dxvk::wsi {
+     return {};
+   }
+ 
++  bool Sdl3WsiDriver::supportsHDR(HMONITOR hMonitor)
++  {
++    return false;
++  }
++
+ }
+ 
+ #endif
+diff --git a/src/wsi/win32/wsi_monitor_win32.cpp b/src/wsi/win32/wsi_monitor_win32.cpp
+index d791bf2c3..b6399c901 100644
+--- a/src/wsi/win32/wsi_monitor_win32.cpp
++++ b/src/wsi/win32/wsi_monitor_win32.cpp
+@@ -223,6 +223,75 @@ namespace dxvk::wsi {
+     return retrieveDisplayMode(hMonitor, ENUM_REGISTRY_SETTINGS, pMode);
+   }
+ 
++  static bool getAdvancedColorEnabled(const MONITORINFOEXW &monInfo)
++  {
++    // Try and find the monitor device path that matches
++    // the name of our HMONITOR from the monitor info.
++    LONG result = ERROR_SUCCESS;
++    std::vector<DISPLAYCONFIG_PATH_INFO> paths;
++    std::vector<DISPLAYCONFIG_MODE_INFO> modes;
++    do {
++      uint32_t pathCount = 0, modeCount = 0;
++      if ((result = ::GetDisplayConfigBufferSizes(QDC_ONLY_ACTIVE_PATHS, &pathCount, &modeCount)) != ERROR_SUCCESS) {
++        Logger::err(str::format("getAdvancedColorEnabled: GetDisplayConfigBufferSizes failed. ret: ", result, " LastError: ", GetLastError()));
++        return {};
++      }
++      paths.resize(pathCount);
++      modes.resize(modeCount);
++      result = ::QueryDisplayConfig(QDC_ONLY_ACTIVE_PATHS, &pathCount, paths.data(), &modeCount, modes.data(), nullptr);
++    } while (result == ERROR_INSUFFICIENT_BUFFER);
++
++    if (result != ERROR_SUCCESS) {
++      Logger::err(str::format("getAdvancedColorEnabled: QueryDisplayConfig failed. ret: ", result, " LastError: ", GetLastError()));
++      return {};
++    }
++
++    // Link a source name -> target name
++    for (const auto& path : paths) {
++      DISPLAYCONFIG_SOURCE_DEVICE_NAME sourceName;
++      sourceName.header.type      = DISPLAYCONFIG_DEVICE_INFO_GET_SOURCE_NAME;
++      sourceName.header.size      = sizeof(sourceName);
++      sourceName.header.adapterId = path.sourceInfo.adapterId;
++      sourceName.header.id        = path.sourceInfo.id;
++      if ((result = ::DisplayConfigGetDeviceInfo(&sourceName.header)) != ERROR_SUCCESS) {
++        Logger::err(str::format("getAdvancedColorEnabled: DisplayConfigGetDeviceInfo with DISPLAYCONFIG_DEVICE_INFO_GET_SOURCE_NAME failed. ret: ", result, " LastError: ", GetLastError()));
++        continue;
++      }
++
++      DISPLAYCONFIG_GET_ADVANCED_COLOR_INFO advInfo;
++      advInfo.header.type      = DISPLAYCONFIG_DEVICE_INFO_GET_ADVANCED_COLOR_INFO;
++      advInfo.header.size      = sizeof(advInfo);
++      advInfo.header.adapterId = path.targetInfo.adapterId;
++      advInfo.header.id        = path.targetInfo.id;
++      if ((result = ::DisplayConfigGetDeviceInfo(&advInfo.header)) != ERROR_SUCCESS) {
++        Logger::err(str::format("getAdvancedColorEnabled: DisplayConfigGetDeviceInfo with DISPLAYCONFIG_DEVICE_INFO_GET_ADVANCED_COLOR_INFO failed. ret: ", result, " LastError: ", GetLastError()));
++        continue;
++      }
++
++      // Does the source match the GDI device we are looking for?
++      // If so, return the value back.
++      if (!wcscmp(sourceName.viewGdiDeviceName, monInfo.szDevice))
++        return advInfo.advancedColorSupported && advInfo.advancedColorEnabled;
++    }
++
++    Logger::err("getAdvancedColorEnabled: Failed to find a link from source -> target.");
++    return false;
++  }
++
++  bool Win32WsiDriver::supportsHDR(HMONITOR hMonitor)
++  {
++    // Query monitor info to get the device name
++    ::MONITORINFOEXW monInfo;
++    monInfo.cbSize = sizeof(monInfo);
++
++    if (!::GetMonitorInfoW(hMonitor, reinterpret_cast<MONITORINFO*>(&monInfo))) {
++      Logger::err("Win32 WSI: retrieveDisplayMode: Failed to query monitor info");
++      return false;
++    }
++
++    return getAdvancedColorEnabled(monInfo);
++  }
++
+   static std::wstring getMonitorDevicePath(HMONITOR hMonitor) {
+     // Get the device name of the monitor.
+     MONITORINFOEXW monInfo;
+diff --git a/src/wsi/win32/wsi_platform_win32.h b/src/wsi/win32/wsi_platform_win32.h
+index 06b86619b..330b817b1 100644
+--- a/src/wsi/win32/wsi_platform_win32.h
++++ b/src/wsi/win32/wsi_platform_win32.h
+@@ -44,6 +44,8 @@ namespace dxvk::wsi {
+ 
+     virtual WsiEdidData getMonitorEdid(HMONITOR hMonitor);
+ 
++    virtual bool supportsHDR(HMONITOR hMonitor);
++
+     // Window
+ 
+     virtual void getWindowSize(
+diff --git a/src/wsi/wsi_edid.h b/src/wsi/wsi_edid.h
+index d1af3317a..7e248eed7 100644
+--- a/src/wsi/wsi_edid.h
++++ b/src/wsi/wsi_edid.h
+@@ -24,6 +24,8 @@ namespace dxvk::wsi {
+     float minLuminance;
+     float maxLuminance;
+     float maxFullFrameLuminance;
++
++    bool hdrEnabled;
+   };
+ 
+   /**
+diff --git a/src/wsi/wsi_monitor.h b/src/wsi/wsi_monitor.h
+index 29cd9ef78..00232379c 100644
+--- a/src/wsi/wsi_monitor.h
++++ b/src/wsi/wsi_monitor.h
+@@ -27,6 +27,7 @@ namespace dxvk::wsi {
+     WsiRational  refreshRate;
+     uint32_t     bitsPerPixel;
+     bool         interlaced;
++    bool         hdrEnabled;
+   };
+ 
+   /**
+@@ -149,4 +150,6 @@ namespace dxvk::wsi {
+     */
+   WsiEdidData getMonitorEdid(HMONITOR hMonitor);
+ 
++  bool supportsHDR(HMONITOR hMonitor);
++
+ }
+diff --git a/src/wsi/wsi_platform.cpp b/src/wsi/wsi_platform.cpp
+index 08f456e7b..96e875571 100644
+--- a/src/wsi/wsi_platform.cpp
++++ b/src/wsi/wsi_platform.cpp
+@@ -199,4 +199,8 @@ namespace dxvk::wsi {
+     return s_driver->getMonitorEdid(hMonitor);
+   }
+ 
++  bool supportsHDR(HMONITOR hMonitor) {
++    return s_driver->supportsHDR(hMonitor);
++  }
++
+ }
+diff --git a/src/wsi/wsi_platform.h b/src/wsi/wsi_platform.h
+index f1fae3f17..7da0cd7ae 100644
+--- a/src/wsi/wsi_platform.h
++++ b/src/wsi/wsi_platform.h
+@@ -44,6 +44,8 @@ namespace dxvk::wsi {
+ 
+     virtual WsiEdidData getMonitorEdid(HMONITOR hMonitor) = 0;
+ 
++    virtual bool supportsHDR(HMONITOR hMonitor);
++
+     // Window
+ 
+     virtual void getWindowSize(
+-- 
+2.54.0
+
