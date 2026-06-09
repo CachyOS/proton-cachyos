@@ -1,0 +1,36 @@
+From 7b91ce5e7375ab28dd921d473efc60319ed040a9 Mon Sep 17 00:00:00 2001
+From: Etaash Mathamsetty
+ <45927311+Etaash-mathamsetty@users.noreply.github.com>
+Date: Wed, 22 Jul 2026 04:50:34 -0400
+Subject: [PATCH 3/3] [dxgi] Introduce a dxgi.disableUe4Workarounds option.
+
+derp I missed that setting this to false is the default.
+---
+ src/dxgi/dxgi_options.cpp | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/dxgi/dxgi_options.cpp b/src/dxgi/dxgi_options.cpp
+index 60d5f0914..1cf48a19a 100644
+--- a/src/dxgi/dxgi_options.cpp
++++ b/src/dxgi/dxgi_options.cpp
+@@ -201,14 +201,15 @@ namespace dxvk {
+     this->disableHDR = config.getOption<bool>("dxgi.disableHDR", env::getEnvVar("DXVK_NO_HDR") == "1");
+ 
+     bool enableUe4Workarounds = config.getOption<bool>("dxgi.enableUe4Workarounds", false);
++    bool disableUe4Workarounds = config.getOption<bool>("dxgi.disableUe4Workarounds", env::getEnvVar("DXVK_NO_UE4_WORKAROUND") == "1");
+ 
+-    if (isHDRDisallowed(enableUe4Workarounds))
++    if (isHDRDisallowed(enableUe4Workarounds) && !disableUe4Workarounds)
+     {
+       Logger::info("HDR was force disabled as a UE4 DX11 game was detected.");
+       this->disableHDR = true;
+     }
+ 
+-    if (this->enableHDR && isHDRDisallowed(enableUe4Workarounds)) {
++    if (this->enableHDR && isHDRDisallowed(enableUe4Workarounds) && !disableUe4Workarounds) {
+       Logger::info("HDR was configured to be enabled, but has been force disabled as a UE4 DX11 game was detected.");
+       this->enableHDR = false;
+     }
+-- 
+2.55.0
+
