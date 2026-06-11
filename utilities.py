@@ -114,6 +114,18 @@ def add_vk_implicit_layer(method: Callable, env: dict, path: str) -> None:
         method(env, "VK_ADD_IMPLICIT_LAYER_PATH", path, ":")
 
 
+def is_driver_loaded(d):
+    try:
+        with open('/proc/modules') as f:
+            drivers = set([line.partition(' ')[0] for line in f.read().splitlines()])
+            if drivers.intersection(d):
+                return True
+            else:
+                return False
+    except OSError:
+        return False
+
+
 @dataclass
 class GPU:
     deviceType: VkPhysicalDeviceType
@@ -246,6 +258,7 @@ if __name__ == '__main__':
 __all__ = [
     'add_vk_implicit_layer',
     'get_vulkan_gpus',
+    'is_driver_loaded',
     'log_environment',
     'primary_gpu_supports_vulkan',
     'proton_add_config',
