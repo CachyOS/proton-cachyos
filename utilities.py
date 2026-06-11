@@ -76,6 +76,18 @@ def log_environment(env: dict, log_file: io.TextIOWrapper):
         log_file.write(var + ": " + env[var] + "\n")
 
 
+def is_driver_loaded(d):
+    try:
+        with open('/proc/modules') as f:
+            drivers = set([line.partition(' ')[0] for line in f.read().splitlines()])
+            if drivers.intersection(d):
+                return True
+            else:
+                return False
+    except OSError:
+        return False
+
+
 @dataclass
 class GPU:
     deviceType: VkPhysicalDeviceType
@@ -193,4 +205,4 @@ if __name__ == '__main__':
     pass
 
 
-__all__ = ['primary_gpu_supports_vulkan', 'get_vulkan_gpus', 'log_environment']
+__all__ = ['primary_gpu_supports_vulkan', 'get_vulkan_gpus', 'log_environment', 'is_driver_loaded']
