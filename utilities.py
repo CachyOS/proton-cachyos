@@ -1,5 +1,6 @@
 """Various utility functions for use in the proton script"""
 
+import io
 import sys
 import os
 from argparse import Namespace
@@ -38,7 +39,24 @@ config = Config()
 log = Log()
 
 
-if __name__ == "__main__":
+def log_environment(env: dict, log_file: io.TextIOWrapper):
+    log_file.write('======================\n')
+    log_file.write('Inherited environment\n')
+    for var in (name for name in (
+        'MANGOHUD',
+        'PROTON_DLSS_UPGRADE',
+        'PROTON_XESS_UPGRADE',
+        'PROTON_FSR3_UPGRADE',
+        'PROTON_FSR4_UPGRADE',
+        'PROTON_FSR4_RDNA3_UPGRADE',
+        'DXVK_FILTER_DEVICE_NAME',
+        'PROTON_DISCORD_BRIDGE',
+    ) if name in env):
+        log_file.write(var + ": " + env[var] + "\n")
+
+
+if __name__ == '__main__':
     pass
 
-__all__ = []
+
+__all__ = ['log_environment']
