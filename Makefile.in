@@ -178,6 +178,7 @@ include $(SRC)/steamrtdeps/build-libxml2.mk
 include $(SRC)/steamrtdeps/build-xz.mk
 include $(SRC)/steamrtdeps/build-speexdsp.mk
 include $(SRC)/steamrtdeps/build-speex.mk
+include $(SRC)/steamrtdeps/build-flac.mk
 
 
 ##
