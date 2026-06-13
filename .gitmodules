@@ -25,6 +25,9 @@
 [submodule "steamrtdeps/speexdsp"]
 	path = steamrtdeps/speexdsp
 	url = https://github.com/xiph/speexdsp.git
+[submodule "steamrtdeps/flac"]
+	path = steamrtdeps/flac
+	url = https://github.com/xiph/flac.git
 [submodule "gstreamer"]
 	path = gstreamer
 	url = https://github.com/GStreamer/gstreamer.git
