@@ -177,6 +177,8 @@ ifneq ($(WITHOUT_STEAMRT_DEPENDS),1)
 include $(SRC)/steamrtdeps/build-libwebp.mk
 include $(SRC)/steamrtdeps/build-libxml2.mk
 include $(SRC)/steamrtdeps/build-xz.mk
+include $(SRC)/steamrtdeps/build-speexdsp.mk
+include $(SRC)/steamrtdeps/build-speex.mk
 endif # WITHOUT_STEAMRT_DEPENDS
 
 
