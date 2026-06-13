@@ -176,6 +176,7 @@ $(eval $(call rules-source,patches,$(SRCDIR)/patches))
 ifneq ($(WITHOUT_STEAMRT_DEPENDS),1)
 include $(SRC)/steamrtdeps/build-libwebp.mk
 include $(SRC)/steamrtdeps/build-libxml2.mk
+include $(SRC)/steamrtdeps/build-xz.mk
 endif # WITHOUT_STEAMRT_DEPENDS
 
 
