@@ -16,6 +16,9 @@
 [submodule "steamrtdeps/libwebp"]
 	path = steamrtdeps/libwebp
 	url = https://github.com/webmproject/libwebp.git
+[submodule "steamrtdeps/xz"]
+	path = steamrtdeps/xz
+	url = https://github.com/tukaani-project/xz.git
 [submodule "gstreamer"]
 	path = gstreamer
 	url = https://github.com/GStreamer/gstreamer.git
