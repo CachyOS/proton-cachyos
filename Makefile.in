@@ -175,6 +175,7 @@ $(eval $(call rules-source,patches,$(SRCDIR)/patches))
 
 include $(SRC)/steamrtdeps/build-libwebp.mk
 include $(SRC)/steamrtdeps/build-libxml2.mk
+include $(SRC)/steamrtdeps/build-xz.mk
 
 
 ##
