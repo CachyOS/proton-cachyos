@@ -353,14 +353,12 @@ GST_GOOD_MESON_ARGS += \
 	-Ddoc=disabled \
 	-Dflv=enabled \
 	-Dflx=enabled \
+	-Dflac=enabled \
 	-Dspeex=enabled \
 	-Dxingmux=enabled \
 	-Dy4m=enabled \
 	-Dadaptivedemux2=enabled \
 	-Djpeg=enabled \
-
-GST_GOOD_MESON_ARGS += \
-	-Dflac=disabled
 
 GST_GOOD_DEPENDS = gst_orc gstreamer gst_base libsoup
 GST_GOOD_HOST_DEPENDS = gst_orc
@@ -369,6 +367,7 @@ GST_GOOD_DEPENDS += $(LIBXML2_DEPENDENCY)
 
 GST_GOOD_i386_DEPENDS += $(SPEEX_DEPENDENCY)
 GST_GOOD_i386_DEPENDS += $(SPEEXDSP_DEPENDENCY)
+GST_GOOD_i386_DEPENDS += $(FLAC_DEPENDENCY)
 
 $(eval $(call rules-source,gst_good,$(SRCDIR)/gstreamer/subprojects/gst-plugins-good/))
 $(eval $(call rules-meson,gst_good,i386,unix))
