@@ -19,6 +19,12 @@
 [submodule "steamrtdeps/xz"]
 	path = steamrtdeps/xz
 	url = https://github.com/tukaani-project/xz.git
+[submodule "steamrtdeps/speex"]
+	path = steamrtdeps/speex
+	url = https://github.com/xiph/speex.git
+[submodule "steamrtdeps/speexdsp"]
+	path = steamrtdeps/speexdsp
+	url = https://github.com/xiph/speexdsp.git
 [submodule "gstreamer"]
 	path = gstreamer
 	url = https://github.com/GStreamer/gstreamer.git
