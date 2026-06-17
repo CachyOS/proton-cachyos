@@ -1268,10 +1268,12 @@ $(OBJ)/.vkd3d-proton-post-source:
 ## extras
 ##
 
+ifneq ($(WITHOUT_EXTRAS),1)
 include $(SRC)/extras/build-dxvk-sarek.mk
 include $(SRC)/extras/build-d7vk.mk
 include $(SRC)/extras/build-dxvk-low-latency.mk
 include $(SRC)/extras/build-discord-rpc-bridge.mk
+endif # WITHOUT_EXTRAS
 
 
 ##
@@ -1290,10 +1292,12 @@ endif # WITHOUT_NVIDIA_LIBS
 ## vklayers
 ##
 
+ifneq ($(WITHOUT_VKLAYERS),1)
 include $(SRC)/vklayers/build-dxvk-nvapi-vkreflex-layer.mk
 include $(SRC)/vklayers/build-pyroveil.mk
 include $(SRC)/vklayers/build-low_latency_layer.mk
 include $(SRC)/vklayers/build-vkbasalt.mk
+endif # WITHOUT_VKLAYERS
 
 
 ##

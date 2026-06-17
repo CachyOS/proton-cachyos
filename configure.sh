@@ -196,14 +196,11 @@ function configure() {
     if [[ -n "$arg_without_nvidia_libs" ]]; then
       echo "WITHOUT_NVIDIA_LIBS := 1"
     fi
-    if [[ -n "$arg_without_sarek" ]]; then
-      echo "WITHOUT_SAREK := 1"
+    if [[ -n "$arg_without_extras" ]]; then
+      echo "WITHOUT_EXTRAS := $arg_without_extras"
     fi
-    if [[ -n "$arg_without_d7vk" ]]; then
-      echo "WITHOUT_D7VK := 1"
-    fi
-    if [[ -n "$arg_without_llasync" ]]; then
-      echo "WITHOUT_LLASYNC := 1"
+    if [[ -n "$arg_without_vklayers" ]]; then
+      echo "WITHOUT_VKLAYERS := $arg_without_vklayers"
     fi
     if [[ -n "$arg_without_steamrt_depends" ]]; then
       echo "WITHOUT_STEAMRT_DEPENDS := 1"
@@ -235,9 +232,8 @@ arg_enable_ccache=""
 arg_enable_wow64=""
 arg_without_tts=""
 arg_without_nvidia_libs=""
-arg_without_sarek=""
-arg_without_d7vk=""
-arg_without_llasync=""
+arg_without_extras=""
+arg_without_vklayers=""
 arg_without_steamrt_depends=""
 arg_help=""
 invalid_args=""
@@ -294,12 +290,14 @@ function parse_args() {
       arg_without_tts="1"
     elif [[ $arg = --without-nvidia-libs ]]; then
       arg_without_nvidia_libs="1"
-    elif [[ $arg = --without-sarek ]]; then
-      arg_without_sarek="1"
-    elif [[ $arg = --without-d7vk ]]; then
-      arg_without_d7vk="1"
-    elif [[ $arg = --without-llasync ]]; then
-      arg_without_llasync="1"
+    elif [[ $arg = --without-extras ]]; then
+      if [[ $val = "all" ]]; then val=1; fi
+      arg_without_extras="$val"
+      val_used=1
+    elif [[ $arg = --without-vklayers ]]; then
+      if [[ $val = "all" ]]; then val=1; fi
+      arg_without_vklayers="$val"
+      val_used=1
     elif [[ $arg = --without-steamrt-depends ]]; then
       arg_without_steamrt_depends="1"
     elif [[ $arg = --proton-sdk-image ]]; then
@@ -365,11 +363,11 @@ usage() {
   "$1" ""
   "$1" "    --without-nvidia-libs Disables alternative NVidia libraries (nvcuda, nvenc, nvml, nvoptix)"
   "$1" ""
-  "$1" "    --without-sarek Disables dxvk-sarek"
+  "$1" "    --without-extras=<list> Comma-separated list of extras to disable, or 'all' to disable everything."
+  "$1" "                            Values: dxvk-sarek | d7vk | dxvk-low-latency | discord-rpc-bridge"
   "$1" ""
-  "$1" "    --without-d7vk Disables d7vk"
-  "$1" ""
-  "$1" "    --without-llasync Disables dxvk-llasync"
+  "$1" "    --without-vklayers=<list> Comma-separated list of vulkan layers to disable, or 'all' to disable everything."
+  "$1" "                              Values: dxvk-nvapi-vkreflex-layer | low_latency_layer | pyroveil | vkbasalt"
   "$1" ""
   "$1" "    --without-steamrt-depends Disables bundling extra dependencies for SteamRT4, should be provided by the"
   "$1" "                              package manager (for native builds)"
