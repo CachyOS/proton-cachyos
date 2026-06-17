@@ -1297,6 +1297,14 @@ endif # WITHOUT_EXTRAS
 
 
 ##
+## vklayers
+##
+
+ifneq ($(WITHOUT_VKLAYERS),1)
+endif # WITHOUT_VKLAYERS
+
+
+##
 ## FEX
 ##
 
