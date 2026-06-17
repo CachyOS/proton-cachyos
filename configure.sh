@@ -196,6 +196,9 @@ function configure() {
     if [[ -n "$arg_without_extras" ]]; then
       echo "WITHOUT_EXTRAS := $arg_without_extras"
     fi
+    if [[ -n "$arg_without_vklayers" ]]; then
+      echo "WITHOUT_VKLAYERS := $arg_without_vklayers"
+    fi
     if [[ -n "$arg_without_steamrt_depends" ]]; then
       echo "WITHOUT_STEAMRT_DEPENDS := 1"
     fi
@@ -226,6 +229,7 @@ arg_enable_ccache=""
 arg_enable_wow64=""
 arg_without_tts=""
 arg_without_extras=""
+arg_without_vklayers=""
 arg_without_steamrt_depends=""
 arg_help=""
 invalid_args=""
@@ -283,6 +287,10 @@ function parse_args() {
     elif [[ $arg = --without-extras ]]; then
       if [[ $val = all ]]; then val=1; fi
       arg_without_extras="$val"
+      val_used=1
+    elif [[ $arg = --without-vklayers ]]; then
+      if [[ $val = all ]]; then val=1; fi
+      arg_without_vklayers="$val"
       val_used=1
     elif [[ $arg = --without-steamrt-depends ]]; then
       arg_without_steamrt_depends="1"
@@ -349,6 +357,9 @@ usage() {
   "$1" ""
   "$1" "    --without-extras=<list> Comma-separated list of extras to disable, or 'all' to disable everything."
   "$1" "                            Values: all | dxvk-sarek | d7vk | dxvk-low-latency | vkd3d-low-latency"
+  "$1" ""
+  "$1" "    --without-vklayers=<list> Comma-separated list of vulkan layers to disable, or 'all' to disable everything."
+  "$1" "                              Values: all"
   "$1" ""
   "$1" "    --without-steamrt-depends Disable the inclusion of additonal dependencies for SteamRT4,"
   "$1" "                              useful for debugging and native builds without the Steam Runtime"
