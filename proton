@@ -2241,8 +2241,6 @@ class Session:
                     del self.env["SteamVirtualGamepadInfo"]
                 if "SDL_GAMECONTROLLER_ALLOW_STEAM_VIRTUAL_GAMEPAD" in self.env:
                     del self.env["SDL_GAMECONTROLLER_ALLOW_STEAM_VIRTUAL_GAMEPAD"]
-            if "DISPLAY" in self.env:
-                del self.env["DISPLAY"]
         else:
             # X11 specific changes to increase compat
             # Surfaceless supports less formats than x11
