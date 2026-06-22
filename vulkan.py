@@ -1,7 +1,23 @@
 import uuid
 from collections.abc import Generator
-from ctypes import (CDLL, c_int, c_void_p, c_uint32, c_char_p, POINTER, Structure, c_float, c_char, c_uint8, c_size_t,
-                    c_uint64, c_int32, byref, cast, pointer)
+from ctypes import (
+    CDLL,
+    c_int,
+    c_void_p,
+    c_uint32,
+    c_char_p,
+    POINTER,
+    Structure,
+    c_float,
+    c_char,
+    c_uint8,
+    c_size_t,
+    c_uint64,
+    c_int32,
+    byref,
+    cast,
+    pointer
+)
 from dataclasses import dataclass
 from enum import Enum
 from functools import reduce
@@ -77,6 +93,7 @@ class VkStructureType(Enum):
     PHYSICAL_DEVICE_FEATURES_2 = 1000059000
     PHYSICAL_DEVICE_PROPERTIES_2 = 1000059001
     PHYSICAL_DEVICE_ID_PROPERTIES = 1000071004
+    PHYSICAL_DEVICE_DRIVER_PROPERTIES = 1000196000
     # Provided by VK_VERSION_1_2
     PHYSICAL_DEVICE_VULKAN_1_1_FEATURES = 49
     PHYSICAL_DEVICE_VULKAN_1_1_PROPERTIES = 50
@@ -97,6 +114,49 @@ class VkPhysicalDeviceType(Enum):
     DISCRETE_GPU = 2
     VIRTUAL_GPU = 3
     CPU = 4
+
+
+# https://docs.vulkan.org/spec/latest/chapters/devsandqueues.html#VkDriverId
+class VkDriverId(Enum):
+    AMD_PROPRIETARY = 1
+    AMD_OPEN_SOURCE = 2
+    MESA_RADV = 3
+    NVIDIA_PROPRIETARY = 4
+    INTEL_PROPRIETARY_WINDOWS = 5
+    INTEL_OPEN_SOURCE_MESA = 6
+    IMAGINATION_PROPRIETARY = 7
+    QUALCOMM_PROPRIETARY = 8
+    ARM_PROPRIETARY = 9
+    GOOGLE_SWIFTSHADER = 10
+    GGP_PROPRIETARY = 11
+    BROADCOM_PROPRIETARY = 12
+    MESA_LLVMPIPE = 13
+    MOLTENVK = 14
+    COREAVI_PROPRIETARY = 15
+    JUICE_PROPRIETARY = 16
+    VERISILICON_PROPRIETARY = 17
+    MESA_TURNIP = 18
+    MESA_V3DV = 19
+    MESA_PANVK = 20
+    SAMSUNG_PROPRIETARY = 21
+    MESA_VENUS = 22
+    MESA_DOZEN = 23
+    MESA_NVK = 24
+    IMAGINATION_OPEN_SOURCE_MESA = 25
+    MESA_HONEYKRISP = 26
+    VULKAN_SC_EMULATION_ON_VULKAN = 27
+    MESA_KOSMICKRISP = 28
+    MESA_GFXSTREAM = 29
+    APE_SOFT = 30
+
+    UNKNOWN = -1
+
+    @classmethod
+    def _missing_(cls, value):
+        # We want to allow other values here, since the driver ID *may* be different
+        if isinstance(value, int):
+            return cls.UNKNOWN
+        return super()._missing_(value)
 
 
 # https://docs.vulkan.org/refpages/latest/refpages/source/VkApplicationInfo.html
@@ -279,6 +339,34 @@ class VkPhysicalDeviceProperties2(Structure):
         ('sType', c_int),
         ('pNext', c_void_p),
         ('properties', VkPhysicalDeviceProperties)
+    ]
+
+
+# https://docs.vulkan.org/spec/latest/chapters/devsandqueues.html#VK_MAX_DRIVER_NAME_SIZE
+VK_MAX_DRIVER_NAME_SIZE = 256
+
+# https://docs.vulkan.org/spec/latest/chapters/devsandqueues.html#VK_MAX_DRIVER_INFO_SIZE
+VK_MAX_DRIVER_INFO_SIZE = 256
+
+
+class VkConformanceVersion(Structure):
+    _fields_ = [
+        ('major', c_uint8),
+        ('minor', c_uint8),
+        ('subminor', c_uint8),
+        ('patch', c_uint8)
+    ]
+
+
+# https://docs.vulkan.org/spec/latest/chapters/devsandqueues.html#VkPhysicalDeviceDriverProperties
+class VkPhysicalDeviceDriverProperties(Structure):
+    _fields_ = [
+        ('sType', c_int),
+        ('pNext', c_void_p),
+        ('driverID', c_int),
+        ('driverName', c_char * VK_MAX_DRIVER_NAME_SIZE),
+        ('driverInfo', c_char * VK_MAX_DRIVER_INFO_SIZE),
+        ('conformanceVersion', VkConformanceVersion)
     ]
 
 
@@ -622,6 +710,22 @@ class VulkanPhysicalDeviceIDProperties:
         )
 
 
+@dataclass
+class VulkanPhysicalDeviceDriverProperties:
+    driverID: VkDriverId
+    driverName: str
+    driverInfo: str
+    # conformanceVersion
+
+    @classmethod
+    def from_native_obj(cls, properties: VkPhysicalDeviceDriverProperties) -> Self:
+        return cls(
+            VkDriverId(properties.driverID),
+            properties.driverName,
+            properties.driverInfo
+        )
+
+
 class VulkanPhysicalDeviceFeatures(set):
     def __init__(self, arg):
         super().__init__(arg)
@@ -652,16 +756,26 @@ class VulkanPhysicalDevice:
     def __init__(self, handle: VkPhysicalDevice):
         self._handle = handle
 
-    def get_properties(self) -> tuple[VulkanPhysicalDeviceProperties, VulkanPhysicalDeviceIDProperties]:
+    def get_properties(self) -> tuple[
+        VulkanPhysicalDeviceProperties, VulkanPhysicalDeviceDriverProperties, VulkanPhysicalDeviceIDProperties
+    ]:
         idprop = VkPhysicalDeviceIDProperties()
         idprop.sType = VkStructureType.PHYSICAL_DEVICE_ID_PROPERTIES.value
         idprop.pNext = c_void_p()
+
+        driver_props = VkPhysicalDeviceDriverProperties()
+        driver_props.sType = VkStructureType.PHYSICAL_DEVICE_DRIVER_PROPERTIES.value
+        driver_props.pNext = cast(pointer(idprop), c_void_p)
+
         prop2 = VkPhysicalDeviceProperties2()
         prop2.sType = VkStructureType.PHYSICAL_DEVICE_PROPERTIES_2.value
-        prop2.pNext = cast(pointer(idprop), c_void_p)
+        prop2.pNext = cast(pointer(driver_props), c_void_p)
+
         vkGetPhysicalDeviceProperties2(self._handle, prop2)
+
         return (
             VulkanPhysicalDeviceProperties.from_native_obj(prop2.properties),
+            VulkanPhysicalDeviceDriverProperties.from_native_obj(driver_props),
             VulkanPhysicalDeviceIDProperties.from_native_obj(idprop)
         )
 
