@@ -149,6 +149,9 @@ def primary_gpu_supports_vulkan(
             grouped[VkPhysicalDeviceType.VIRTUAL_GPU]
     )
 
+    if not primary_category:
+        return True
+
     def supports_extension(gpu: GPU, name: str, version: int) -> bool:
         extension = next((
             e
