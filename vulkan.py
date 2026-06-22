@@ -1,8 +1,10 @@
+import uuid
 from collections.abc import Generator
 from ctypes import (CDLL, c_int, c_void_p, c_uint32, c_char_p, POINTER, Structure, c_float, c_char, c_uint8, c_size_t,
                     c_uint64, c_int32, byref, cast, pointer)
-from dataclasses import dataclass, make_dataclass
+from dataclasses import dataclass
 from enum import Enum
+from functools import reduce
 from typing import Self
 
 libvulkan = CDLL('libvulkan.so.1')
@@ -602,64 +604,34 @@ class VulkanPhysicalDeviceProperties:
 
 @dataclass
 class VulkanPhysicalDeviceIDProperties:
-    deviceUUID: list[int]
-    driverUUID: list[int]
+    deviceUUID: uuid.UUID
+    driverUUID: uuid.UUID
     deviceLUID: list[int]
     deviceNodeMask: int
     deviceLUIDValid: bool
 
     @classmethod
     def from_native_obj(cls, properties: VkPhysicalDeviceIDProperties) -> Self:
+        make_uuid = lambda uuid_arr: uuid.UUID(int=int.from_bytes(uuid_arr, 'big'))
         return cls(
-            properties.deviceUUID,
-            properties.driverUUID,
+            make_uuid(properties.deviceUUID),
+            make_uuid(properties.driverUUID),
             properties.deviceLUID,
             properties.deviceNodeMask,
             properties.deviceLUIDValid,
         )
 
 
-@dataclass
-class VulkanPhysicalDeviceAllFeatures:
-    features: type
-    features11: type
-    features12: type
-    features13: type
-    features14: type
-
-    @staticmethod
-    def make_dataclass_from_structure(struct: Structure) -> type:
-
-            members = [
-                (fname, bool) for fname, ftype in struct._fields_ if ftype == VkBool32
-            ]
-
-            def from_native_obj_factory():
-                def from_native_obj(cls, features):
-                    values = dict((fname, bool(getattr(features, fname))) for fname, ftype in members)
-                    return cls(**values)
-                return from_native_obj
-
-            return make_dataclass(
-                struct.__name__.replace('Vk', 'Vulkan'), members,
-                namespace={ 'from_native_obj': classmethod(from_native_obj_factory()) }
-            )
+class VulkanPhysicalDeviceFeatures(set):
+    def __init__(self, arg):
+        super().__init__(arg)
 
     @classmethod
-    def from_native_objs(
-            cls,
-            features: VkPhysicalDeviceFeatures,
-            features11: VkPhysicalDeviceVulkan11Features,
-            features12: VkPhysicalDeviceVulkan12Features,
-            features13: VkPhysicalDeviceVulkan13Features,
-            features14: VkPhysicalDeviceVulkan14Features,
-    ) -> Self:
+    def from_native_obj(cls, features: Structure):
         return cls(
-            cls.make_dataclass_from_structure(VkPhysicalDeviceFeatures).from_native_obj(features),
-            cls.make_dataclass_from_structure(VkPhysicalDeviceVulkan11Features).from_native_obj(features11),
-            cls.make_dataclass_from_structure(VkPhysicalDeviceVulkan12Features).from_native_obj(features12),
-            cls.make_dataclass_from_structure(VkPhysicalDeviceVulkan13Features).from_native_obj(features13),
-            cls.make_dataclass_from_structure(VkPhysicalDeviceVulkan14Features).from_native_obj(features14)
+            name
+            for name, dtype in features._fields_
+            if dtype == VkBool32 and bool(getattr(features, name))
         )
 
 
@@ -693,7 +665,7 @@ class VulkanPhysicalDevice:
             VulkanPhysicalDeviceIDProperties.from_native_obj(idprop)
         )
 
-    def get_features(self) -> VulkanPhysicalDeviceAllFeatures:
+    def get_features(self) -> VulkanPhysicalDeviceFeatures:
         features14 = VkPhysicalDeviceVulkan14Features()
         features14.sType = VkStructureType.PHYSICAL_DEVICE_VULKAN_1_4_FEATURES.value
         features14.pNext = c_void_p()
@@ -715,9 +687,8 @@ class VulkanPhysicalDevice:
         features.pNext = cast(pointer(features11), c_void_p)
         vkGetPhysicalDeviceFeatures2(self._handle, features)
 
-        return VulkanPhysicalDeviceAllFeatures.from_native_objs(
-            features.features, features11, features12, features13, features14,
-        )
+        native_features = map(VulkanPhysicalDeviceFeatures.from_native_obj, (features.features, features11, features12, features13, features14))
+        return reduce(lambda x, y: x | y, native_features)
 
     def get_extensions(self) -> list[VulkanExtensionProperties]:
         count = c_uint32()

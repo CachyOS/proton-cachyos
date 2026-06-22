@@ -1467,8 +1467,11 @@ def default_compat_config():
     #options to also be enabled for prerequisite setup steps
     ret.add("gamedrive")
 
+    MODERN_DXVK_FEATURES = ['descriptorIndexing']
     if not utilities.primary_gpu_supports_vulkan(
-        1, 3, device_filter=os.getenv("DXVK_FILTER_DEVICE_UUID", os.getenv("DXVK_FILTER_DEVICE_NAME", ""))
+        1, 3,
+        device_filter=os.getenv("DXVK_FILTER_DEVICE_UUID", os.getenv("DXVK_FILTER_DEVICE_NAME", "")),
+        device_features=MODERN_DXVK_FEATURES
     ):
         ret.add("dxvksarek")
 
