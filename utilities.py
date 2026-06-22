@@ -3,8 +3,16 @@
 import io
 import sys
 import os
+import uuid
 from argparse import Namespace
+from collections import defaultdict
+from dataclasses import dataclass
+from functools import cache
+from itertools import groupby
 from pathlib import Path
+
+from vulkan import VulkanPhysicalDeviceFeatures, VulkanExtensionProperties, VkPhysicalDeviceType, VulkanError, \
+    VulkanInstance, VulkanVersion, VulkanPhysicalDevice
 
 base_config = Path(os.getenv('XDG_CONFIG_HOME', '~/.config')).expanduser()
 base_cache = Path(os.getenv('XDG_CACHE_HOME', '~/.cache')).expanduser()
@@ -59,54 +67,88 @@ def log_environment(env: dict, log_file: io.TextIOWrapper):
         log_file.write(var + ": " + env[var] + "\n")
 
 
-def primary_gpu_supports_vulkan(major: int, minor: int, patch: int = 0, /, device_filter: str = '') -> bool:
-    from vulkan import (VulkanError, VulkanInstance, VkPhysicalDeviceType, VulkanPhysicalDeviceAllFeatures, VulkanExtensionProperties, VulkanPhysicalDeviceProperties)
+@dataclass
+class GPU:
+    deviceType: VkPhysicalDeviceType
+    deviceUUID: uuid.UUID
+    deviceName: str
+    vendorID: int
+    apiVersion: VulkanVersion
+    features: VulkanPhysicalDeviceFeatures
+    extensions: list[VulkanExtensionProperties]
 
-    discrete_gpus: list[
-        tuple[VulkanPhysicalDeviceProperties, list[VulkanExtensionProperties], VulkanPhysicalDeviceAllFeatures]] = []
-    integrated_gpus: list[
-        tuple[VulkanPhysicalDeviceProperties, list[VulkanExtensionProperties], VulkanPhysicalDeviceAllFeatures]] = []
-    virtual_gpus: list[
-        tuple[VulkanPhysicalDeviceProperties, list[VulkanExtensionProperties], VulkanPhysicalDeviceAllFeatures]] = []
+    @classmethod
+    def from_physical_device(cls, device: VulkanPhysicalDevice):
+        properties, id_properties = device.get_properties()
+        features = device.get_features()
+        extensions = device.get_extensions()
+        return cls(
+            properties.deviceType,
+            id_properties.deviceUUID,
+            properties.deviceName,
+            properties.vendorID,
+            properties.apiVersion,
+            features,
+            extensions
+        )
 
+
+@cache
+def get_vulkan_gpus() -> list[GPU]:
+    gpus: list[GPU] = []
     try:
         with VulkanInstance() as instance:
             for device in instance.enumerate_physical_devices():
-                properties, idproperties = device.get_properties()
-
-                if device_filter:
-                    device_uuid = ''.join(f'{n:x}' for n in idproperties.deviceUUID)
-                    if device_filter != device_uuid and device_filter not in properties.deviceName:
-                        continue
-
-                features = device.get_features()
-                extensions = device.get_extensions()
-
-                match properties.deviceType:
-                    case VkPhysicalDeviceType.DISCRETE_GPU:
-                        discrete_gpus.append((properties, extensions, features))
-                    case VkPhysicalDeviceType.INTEGRATED_GPU:
-                        integrated_gpus.append((properties, extensions, features))
-                    case VkPhysicalDeviceType.VIRTUAL_GPU:
-                        virtual_gpus.append((properties, extensions, features))
-
-            # this handles the case that the device filter is malformed and doesn't match any GPUs.
-            # Instead of a silent fallback to sarek, let it break later on with upstream dxvk
-            if not discrete_gpus and not integrated_gpus and not virtual_gpus:
-                raise VulkanError
-
+                gpus.append(GPU.from_physical_device(device))
     except VulkanError:
-        return True
+        pass
+    return gpus
 
-    gpus_to_look_at = discrete_gpus or integrated_gpus or virtual_gpus
+
+def primary_gpu_supports_vulkan(
+    major: int, minor: int, patch: int = 0, /,
+    device_filter: str = '',
+    device_features: list[str] | None = None,
+    device_extensions: dict[str, int] | None = None
+) -> bool:
+    if device_features is None:
+        device_features = []
+    if device_extensions is None:
+        device_extensions = {}
+
+    gpus = get_vulkan_gpus()
+    grouped: dict[VkPhysicalDeviceType, list[GPU]] = defaultdict(list)
+    for group_type, gpus in groupby(gpus, lambda x: x.deviceType):
+        grouped[group_type] = list(
+            gpu
+            for gpu in gpus
+            if (
+                not device_filter or
+                device_filter in gpu.deviceName or
+                device_filter in str(gpu.deviceUUID).replace('-', '')
+            )
+        )
+    primary_category = (
+            grouped[VkPhysicalDeviceType.DISCRETE_GPU] or
+            grouped[VkPhysicalDeviceType.INTEGRATED_GPU] or
+            grouped[VkPhysicalDeviceType.VIRTUAL_GPU]
+    )
+
+    def supports_extension(gpu: GPU, name: str, version: int) -> bool:
+        extension = next((
+            e
+            for e in gpu.extensions
+            if e.extensionName == name
+        ), None)
+        if not extension:
+            return False
+        return extension.specVersion >= version
+
     return any(
-        _props.apiVersion >= (major, minor, patch) and all((
-            # features
-            _feats.features12.descriptorIndexing,
-        )) and all((
-            # extensions
-        ))
-        for _props, _extens, _feats in gpus_to_look_at
+        (gpu.apiVersion >= (major, minor, patch)) and
+        (all(map(lambda feature: feature in gpu.features, device_features))) and
+        (all(map(lambda requested_extension: supports_extension(gpu, *requested_extension), device_extensions.items())))
+        for gpu in primary_category
     )
 
 
@@ -123,10 +165,14 @@ if __name__ == '__main__':
     print(primary_gpu_supports_vulkan(1,1, device_filter="NVIDIA"))
     print(primary_gpu_supports_vulkan(1,1, device_filter="AMD"))
 
+    print("\nWith features")
+    print(primary_gpu_supports_vulkan(1, 1, device_features=['descriptorIndexing']))
+
     pass
 
 
 __all__ = [
+    'get_vulkan_gpus',
     'log_environment',
     'primary_gpu_supports_vulkan',
 ]
