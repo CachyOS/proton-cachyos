@@ -1,0 +1,30 @@
+From 1676dcaf342a9b13af86c0464ad46235687727a6 Mon Sep 17 00:00:00 2001
+From: Diego Gomez <diego.gomez2005@gmail.com>
+Date: Sun, 22 Mar 2026 09:33:06 -0400
+Subject: [PATCH] [dxvk] Fix build failure with Clang 22
+
+Pass the default-constructed key explicitly instead of using an empty
+std::tuple() with std::piecewise_construct, which Clang/LLVM 22 rejects
+due to stricter parameter pack validation.
+
+Closes doitsujin/dxvk#5545
+---
+ src/dxvk/dxvk_pipemanager.cpp | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/dxvk/dxvk_pipemanager.cpp b/src/dxvk/dxvk_pipemanager.cpp
+index a343fdc8d..5127a4247 100644
+--- a/src/dxvk/dxvk_pipemanager.cpp
++++ b/src/dxvk/dxvk_pipemanager.cpp
+@@ -380,7 +380,7 @@ namespace dxvk {
+ 
+     auto iter = m_shaderLibraries.emplace(
+       std::piecewise_construct,
+-      std::tuple(),
++      std::tuple(key),
+       std::tuple(m_device, this, key));
+     return &iter.first->second;
+   }
+-- 
+2.54.0
+
