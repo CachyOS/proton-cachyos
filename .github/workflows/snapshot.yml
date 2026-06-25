@@ -65,7 +65,7 @@ jobs:
             configure: >-
               --without-nvidia-libs
               --without-tts
-              --proton-sdk-image=registry.gitlab.steamos.cloud/proton/steamrt4/sdk/x86_64-llvm:4.0.20260331.220802-0
+              --proton-sdk-image=registry.gitlab.steamos.cloud/proton/steamrt4/sdk/x86_64-llvm:4.0.20260331.220802-2
 
           - name: proton-${{ needs.version.outputs.full_desc }}-x86_64_v3-llvm
             cflags: -O3 -march=x86-64-v3 -mtune=core-avx2
@@ -73,7 +73,7 @@ jobs:
             configure: >-
               --without-nvidia-libs
               --without-tts
-              --proton-sdk-image=registry.gitlab.steamos.cloud/proton/steamrt4/sdk/x86_64-llvm:4.0.20260331.220802-0
+              --proton-sdk-image=registry.gitlab.steamos.cloud/proton/steamrt4/sdk/x86_64-llvm:4.0.20260331.220802-2
 
           - name: proton-${{ needs.version.outputs.full_desc }}-x86_64-llvm-wow64
             cflags: -O3 -march=nocona -mtune=core-avx2
@@ -82,7 +82,7 @@ jobs:
               --enable-wow64
               --without-nvidia-libs
               --without-tts
-              --proton-sdk-image=registry.gitlab.steamos.cloud/proton/steamrt4/sdk/x86_64-llvm:4.0.20260331.220802-0
+              --proton-sdk-image=registry.gitlab.steamos.cloud/proton/steamrt4/sdk/x86_64-llvm:4.0.20260331.220802-2
 
           - name: proton-${{ needs.version.outputs.full_desc }}-arm64
             configure: >-
