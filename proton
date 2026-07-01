@@ -1325,9 +1325,12 @@ def comma_escaped(s):
         idx = idx - 1
     return escaped
 
+additional_config = utilities.proton_add_config()
+
 #hopefully short-lived, app-specific workarounds for Proton bugs
 def default_compat_config():
     ret = set()
+    ret.update(additional_config)
     if "SteamAppId" in os.environ:
         appid = os.environ["SteamAppId"]
         if appid in [
