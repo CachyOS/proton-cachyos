@@ -1589,6 +1589,8 @@ def default_compat_config():
     ):
         ret.add("dxvksarek")
 
+    ret.add("pipewire")
+
     if "STEAM_COMPAT_APP_ID" in os.environ:
         appid = os.environ["STEAM_COMPAT_APP_ID"]
 
@@ -1965,6 +1967,7 @@ class Session:
         self.check_environment("PROTON_USE_WAYLAND", "wayland")
         self.check_environment("PROTON_PREFER_SDL", "sdlinput")
         self.check_environment("PROTON_USE_SDL", "sdlinput")
+        self.check_environment("PROTON_USE_PIPEWIRE", "pipewire")
         self.check_environment("PROTON_FSR4_INDICATOR", "fsr4hud")
         self.check_environment("PROTON_DLSS_INDICATOR", "dlsshud")
         self.check_environment("PROTON_NATIVE_AGS", "nativeags")
@@ -1994,6 +1997,9 @@ class Session:
             self.compat_config.add("nvenc")
             self.compat_config.add("nvml")
             self.compat_config.add("nvoptix")
+
+        if "pipewire" not in self.compat_config:
+            self.env.setdefault("WINE_AUDIO_DRIVER", "pulse,alsa")
 
         if os.environ.get("SteamGameId", 0) in [
                 "462780", #Darksiders Warmastered Edition
