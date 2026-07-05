@@ -364,7 +364,7 @@ usage() {
   "$1" "    --without-nvidia-libs Disables alternative NVidia libraries (nvcuda, nvenc, nvml, nvoptix)"
   "$1" ""
   "$1" "    --without-extras=<list> Comma-separated list of extras to disable, or 'all' to disable everything."
-  "$1" "                            Values: dxvk-sarek | d7vk | dxvk-low-latency | discord-rpc-bridge"
+  "$1" "                            Values: dxvk-sarek | d7vk | dxvk-low-latency | vkd3d-low-latency | discord-rpc-bridge"
   "$1" ""
   "$1" "    --without-vklayers=<list> Comma-separated list of vulkan layers to disable, or 'all' to disable everything."
   "$1" "                              Values: dxvk-nvapi-vkreflex-layer | low_latency_layer | pyroveil | vkbasalt"

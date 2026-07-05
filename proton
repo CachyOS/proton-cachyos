@@ -1213,13 +1213,19 @@ class CompatData:
                             prefix=self.prefix_dir, track_file=tracked_files, link_debug=True)
                     g_session.dlloverrides[f] = "n"
 
+                use_vkd3d_lowlatency = "vkd3dlowlatency" in g_session.compat_config and os.path.isdir(g_proton.lib_dir + "wine/vkd3d-low-latency")
+                if use_vkd3d_lowlatency:
+                    vkd3d_proton_path = "vkd3d-low-latency/"
+                else:
+                    vkd3d_proton_path = "vkd3d-proton/"
+
                 for f in vkd3d_protonfiles:
                     optional = False
                     if f == "d3d12core":
                         optional = True
-                    try_copy(g_proton.arch_pe_dir("wine/vkd3d-proton", False) + f + ".dll", "drive_c/windows/system32",
+                    try_copy(g_proton.arch_pe_dir("wine/" + vkd3d_proton_path, False) + f + ".dll", "drive_c/windows/system32",
                             prefix=self.prefix_dir, track_file=tracked_files, link_debug=True, optional=optional)
-                    try_copy(g_proton.arch_pe_dir("wine/vkd3d-proton", True) + f + ".dll", "drive_c/windows/syswow64",
+                    try_copy(g_proton.arch_pe_dir("wine/" + vkd3d_proton_path, True) + f + ".dll", "drive_c/windows/syswow64",
                             prefix=self.prefix_dir, track_file=tracked_files, link_debug=True, optional=optional)
                     g_session.dlloverrides[f] = "n"
 
@@ -1941,6 +1947,7 @@ class Session:
         self.check_environment("PROTON_NO_D3D10", "nod3d10")
         self.check_environment("PROTON_DXVK_SAREK", "dxvksarek")
         self.check_environment("PROTON_DXVK_LOWLATENCY", "dxvklowlatency")
+        self.check_environment("PROTON_VKD3D_LOWLATENCY", "vkd3dlowlatency")
         self.check_environment("PROTON_NO_FSYNC", "nofsync")
         self.check_environment("PROTON_FORCE_LARGE_ADDRESS_AWARE", "forcelgadd")
         self.check_environment("PROTON_OLD_GL_STRING", "oldglstr")
