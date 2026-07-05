@@ -1264,6 +1264,7 @@ ifneq ($(WITHOUT_EXTRAS),1)
 include $(SRC)/extras/build-dxvk-sarek.mk
 include $(SRC)/extras/build-d7vk.mk
 include $(SRC)/extras/build-dxvk-low-latency.mk
+include $(SRC)/extras/build-vkd3d-low-latency.mk
 include $(SRC)/extras/build-discord-rpc-bridge.mk
 endif # WITHOUT_EXTRAS
 
