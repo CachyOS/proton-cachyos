@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from functools import cache
 from itertools import groupby
 from pathlib import Path
+from typing import Callable
 
 from vulkan import (
     VulkanPhysicalDeviceFeatures,
@@ -74,6 +75,13 @@ def log_environment(env: dict, log_file: io.TextIOWrapper):
         "MANGOHUD"
     ))):
         log_file.write(var + ": " + env[var] + "\n")
+
+
+def add_vk_implicit_layer(method: Callable, env: dict, path: str) -> None:
+    if 'VK_IMPLICIT_LAYER_PATH' in env:
+        method(env, "VK_IMPLICIT_LAYER_PATH", path, ":")
+    else:
+        method(env, "VK_ADD_IMPLICIT_LAYER_PATH", path, ":")
 
 
 @dataclass
@@ -194,6 +202,7 @@ if __name__ == '__main__':
 
 
 __all__ = [
+    'add_vk_implicit_layer',
     'get_vulkan_gpus',
     'log_environment',
     'primary_gpu_supports_vulkan',
