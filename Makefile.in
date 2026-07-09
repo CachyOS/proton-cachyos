@@ -106,9 +106,9 @@ ifeq ($(shell cc --version|grep 'clang'),)
 	OBJCOPY_FLAGS  := -p
 	MINGW_TYPE := gcc
 	i386_CFLAGS += -mno-avx -mno-avx2 -mno-avx512f
-	i386_CFLAGS += -fvect-cost-model=cheap -fno-semantic-interposition -fipa-pta
+	i386_CFLAGS += -fvect-cost-model=cheap
 	x86_64_CFLAGS += -mno-avx -mno-avx2 -mno-avx512f
-	x86_64_CFLAGS += -fvect-cost-model=cheap -fno-semantic-interposition -fipa-pta
+	x86_64_CFLAGS += -fvect-cost-model=cheap
 else
 	# CLANG-specific flags
 	TOOLCHAIN_PREFIX := llvm-
