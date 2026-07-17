@@ -1451,6 +1451,13 @@ def default_compat_config():
             ret.add("heapzeromemory")
 
         if appid in [
+                # Games that only enable DualSense haptics for the regular
+                # DualSense, so present the DualSense Edge as one.
+                "553850", #Helldivers 2
+                ]:
+            ret.add("fakedualsense")
+
+        if appid in [
                 "71230", #Crazy Taxi
                 "3328910", #MySims Kingdom
                 ]:
@@ -1882,6 +1889,7 @@ class Session:
         self.check_environment("PROTON_NO_XIM", "noxim")
         self.check_environment("PROTON_HEAP_DELAY_FREE", "heapdelayfree")
         self.check_environment("PROTON_HEAP_ZERO_MEMORY", "heapzeromemory")
+        self.check_environment("PROTON_DUALSENSE_EDGE_AS_DUALSENSE", "fakedualsense")
         self.check_environment("PROTON_DISABLE_NVAPI", "disablenvapi")
         self.check_environment("PROTON_FORCE_NVAPI", "forcenvapi")
         self.check_environment("PROTON_NVIDIA_LIBS", "nvidialibs")
@@ -2082,6 +2090,9 @@ class Session:
 
         if "heaptopdown" in self.compat_config:
             self.env["WINE_HEAP_TOP_DOWN"] = "1"
+
+        if "fakedualsense" in self.compat_config:
+            self.env.setdefault("PROTON_DUALSENSE_EDGE_AS_DUALSENSE", "1")
 
         if "vkd3dbindlesstb" in self.compat_config:
             append_to_env_str(self.env, "VKD3D_CONFIG", "force_bindless_texel_buffer", ",")
