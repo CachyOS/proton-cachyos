@@ -1921,11 +1921,6 @@ class Session:
         self.env.setdefault("VKD3D_DEBUG", "none")
         self.env.setdefault("VKD3D_SHADER_DEBUG", "none")
 
-        if self.env.get("DXVK_HUD") == "1":
-            self.env["DXVK_HUD"] = "devinfo,fps,compiler"
-        else:
-            self.env.setdefault("DXVK_HUD", "compiler")
-
         # Enable wine-nvml by default on Nvidia (experimental)
         if utilities.is_driver_loaded({'nvidia'}):
             self.compat_config.add("nvml")
