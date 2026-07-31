@@ -15,7 +15,9 @@ DXVK_SAREK_SOURCE_ARGS = \
 DXVK_SAREK_MESON_ARGS = -Db_ndebug=true --force-fallback-for=libdisplay-info
 DXVK_SAREK_i386_MESON_ARGS = --bindir=$(DXVK_SAREK_i386_DST)/lib/wine/dxvk-sarek/i386-windows
 DXVK_SAREK_x86_64_MESON_ARGS = --bindir=$(DXVK_SAREK_x86_64_DST)/lib/wine/dxvk-sarek/x86_64-windows
+DXVK_SAREK_x86_64_MESON_ARGS += -Denable_ddraw=false
 DXVK_SAREK_arm64ec_MESON_ARGS = --bindir=$(DXVK_SAREK_arm64ec_DST)/lib/wine/dxvk-sarek/aarch64-windows
+DXVK_SAREK_arm64ec_MESON_ARGS += -Denable_ddraw=false
 DXVK_SAREK_HOST_DEPENDS = glslang
 
 DXVK_SAREK_i386_CFLAGS = -O3 -mno-avx $(i386_SANITY_FLAGS)
