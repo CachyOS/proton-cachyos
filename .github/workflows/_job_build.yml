@@ -122,14 +122,18 @@ jobs:
         key: ${{ steps.ccache-restore.outputs.cache-primary-key }}
 
     - name: Upload artifact ${{ inputs.name }}.tar.xz
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@v7
       with:
         name: ${{ inputs.name }}.tar.xz
         path: ./build/${{ inputs.name }}.tar.xz
+        if-no-files-found: error
+        archive: false
 
     - name: Upload artifact ${{ inputs.name }}.sha512sum
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@v7
       with:
         name: ${{ inputs.name }}.sha512sum
         path: ./build/${{ inputs.name }}.sha512sum
+        if-no-files-found: error
+        archive: false
 
