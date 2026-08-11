@@ -639,6 +639,7 @@ class CompatData:
         self.prefix_dir = self.path("pfx/")
         self.creation_sync_guard = self.path("pfx/creation_sync_guard")
         self.version_file = self.path("version")
+        self.user_settings_file = self.path("user_settings.py")
         self.config_info_file = self.path("config_info")
         self.fex_config_file = self.path("proton-fex-config.json")
         self.tracked_files_file = self.path("tracked_files")
@@ -1901,6 +1902,18 @@ class Session:
 
         #load environment overrides
         used_user_settings = {}
+        if file_exists(g_compatdata.user_settings_file, follow_symlinks=True):
+            try:
+                pfx_settings = utilities.import_from_path('pfx_settings', g_compatdata.user_settings_file)
+                for key, value in pfx_settings.user_settings.items():
+                    if key not in self.env:
+                        self.env[key] = value
+                        used_user_settings[key] = value
+            except Exception:
+                log("**************************************************")
+                log("THERE IS AN ERROR IN YOUR user_settings.json FILE:")
+                log("%s" % sys.exc_info()[1])
+                log("**************************************************")
         if file_exists(g_proton.user_settings_file, follow_symlinks=True):
             try:
                 import user_settings # pyright: ignore [reportMissingImports]
