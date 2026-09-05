@@ -1991,6 +1991,7 @@ class Session:
         self.check_environment("PROTON_FSR4_INDICATOR", "fsr4hud")
         self.check_environment("PROTON_DLSS_INDICATOR", "dlsshud")
         self.check_environment("PROTON_NATIVE_AGS", "nativeags")
+        self.check_environment("PROTON_NATIVE_STEAM", "nativesteam")
 
         if "mediaconv" in self.compat_config:
             self.env["PROTON_VIDEO_CONVERT"] = "1"
@@ -2289,6 +2290,10 @@ class Session:
             self.dlloverrides["atidxx64"] = "b"
             self.dlloverrides["amd_ags_x64"] = "n"
             self.env["DXVK_NO_UE4_WORKAROUND"] = "1"
+
+        if "nativesteam" in self.compat_config:
+            del self.dlloverrides["steam.exe"]
+            self.env["PROTON_DISABLE_LSTEAMCLIENT"] = "1"
 
         if (os.environ.get("SteamGameId", 0) == "1183470"): # Imperiums: Greek Wars
             self.env.setdefault("WINE_MONO_HIDETYPES", "1")
