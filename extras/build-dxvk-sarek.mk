@@ -12,6 +12,9 @@ DXVK_SAREK_arm64ec_SOURCE_DATE_EPOCH := $(shell expr $(arm64ec_SOURCE_DATE_EPOCH
 DXVK_SAREK_SOURCE_ARGS = \
   --exclude version.h.in \
 
+DXVK_SAREK_arm64ec_CFLAGS = -marm64x
+DXVK_SAREK_arm64ec_LDFLAGS = -marm64x
+
 DXVK_SAREK_MESON_ARGS = -Db_ndebug=true --force-fallback-for=libdisplay-info
 DXVK_SAREK_i386_MESON_ARGS = --bindir=$(DXVK_SAREK_i386_DST)/lib/wine/dxvk-sarek/i386-windows
 DXVK_SAREK_x86_64_MESON_ARGS = --bindir=$(DXVK_SAREK_x86_64_DST)/lib/wine/dxvk-sarek/x86_64-windows
