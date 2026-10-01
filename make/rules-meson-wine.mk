@@ -4,7 +4,7 @@
 #   $(3): build target arch
 #   $(4): build target os
 #
-define create-rules-nvidia-libs
+define create-rules-meson-wine
 $(call create-rules-common,$(1),$(2),$(3),$(4))
 ifneq ($(findstring $(3)-$(4),$(ARCHS)),)
 
@@ -38,4 +38,4 @@ $$(OBJ)/.$(1)-$(3)-build:
 endif
 endef
 
-rules-nvidia-libs = $(call create-rules-nvidia-libs,$(1),$(call toupper,$(1)),$(2),$(3))
+rules-meson-wine = $(call create-rules-meson-wine,$(1),$(call toupper,$(1)),$(2),$(3))

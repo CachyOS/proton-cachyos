@@ -18,7 +18,7 @@ NVCUDA32_DEPENDS = wine
 NVCUDA32_HOST_DEPENDS = wine
 
 $(eval $(call rules-source,nvcuda32,$(SRCDIR)/nvidia-libs/nvcuda32))
-$(eval $(call rules-nvidia-libs,nvcuda32,i386,windows))
+$(eval $(call rules-meson-wine,nvcuda32,i386,windows))
 
 $(OBJ)/.nvcuda32-post-source: $(OBJ)/.wine-wine-requests
 	$(foreach i,$(shell find $(NVCUDA32_SRC)/include/wine -type f | sort),cp $(WINE_SRC)/include/wine/$(notdir $(i)) $(i) &&) true
@@ -44,7 +44,7 @@ NVCUDA_DEPENDS = wine
 NVCUDA_HOST_DEPENDS = wine
 
 $(eval $(call rules-source,nvcuda,$(SRCDIR)/nvidia-libs/nvcuda))
-$(eval $(call rules-nvidia-libs,nvcuda,x86_64,windows))
+$(eval $(call rules-meson-wine,nvcuda,x86_64,windows))
 
 $(OBJ)/.nvcuda-post-source: $(OBJ)/.wine-wine-requests
 	$(foreach i,$(shell find $(NVCUDA_SRC)/include/wine -type f | sort),cp $(WINE_SRC)/include/wine/$(notdir $(i)) $(i) &&) true
