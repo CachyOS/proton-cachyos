@@ -18,7 +18,7 @@ NVENC32_DEPENDS = wine
 NVENC32_HOST_DEPENDS = wine
 
 $(eval $(call rules-source,nvenc32,$(SRCDIR)/nvidia-libs/nvenc32))
-$(eval $(call rules-nvidia-libs,nvenc32,i386,windows))
+$(eval $(call rules-meson-wine,nvenc32,i386,windows))
 
 $(OBJ)/.nvenc32-post-source: $(OBJ)/.wine-wine-requests
 	$(foreach i,$(shell find $(NVENC32_SRC)/include/wine -type f | sort),cp $(WINE_SRC)/include/wine/$(notdir $(i)) $(i) &&) true
@@ -44,7 +44,7 @@ NVENC_DEPENDS = wine
 NVENC_HOST_DEPENDS = wine
 
 $(eval $(call rules-source,nvenc,$(SRCDIR)/nvidia-libs/nvenc))
-$(eval $(call rules-nvidia-libs,nvenc,x86_64,windows))
+$(eval $(call rules-meson-wine,nvenc,x86_64,windows))
 
 
 $(OBJ)/.nvenc-post-source: $(OBJ)/.wine-wine-requests
