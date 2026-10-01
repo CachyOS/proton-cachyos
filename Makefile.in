@@ -185,7 +185,6 @@ include $(SRC)/steamrtdeps/build-libxml2.mk
 include $(SRC)/steamrtdeps/build-libxkbcommon.mk
 include $(SRC)/steamrtdeps/build-wayland-protocols.mk
 include $(SRC)/steamrtdeps/build-libpcap.mk
-include $(SRC)/steamrtdeps/build-pipewire.mk
 include $(SRC)/steamrtdeps/build-xz.mk
 include $(SRC)/steamrtdeps/build-speexdsp.mk
 include $(SRC)/steamrtdeps/build-speex.mk
