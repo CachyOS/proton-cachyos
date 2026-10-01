@@ -19,9 +19,9 @@ NVML_DLL_DEPENDS = wine
 NVML_DLL_HOST_DEPENDS = wine
 
 $(eval $(call rules-source,nvml_so,$(SRCDIR)/nvidia-libs/wine-nvml))
-$(eval $(call rules-nvidia-libs,nvml_so,x86_64,unix))
+$(eval $(call rules-meson-wine,nvml_so,x86_64,unix))
 $(eval $(call rules-source,nvml_dll,$(SRCDIR)/nvidia-libs/wine-nvml))
-$(eval $(call rules-nvidia-libs,nvml_dll,x86_64,windows))
+$(eval $(call rules-meson-wine,nvml_dll,x86_64,windows))
 
 $(OBJ)/.nvml_so-post-source:
 	cd $(NVML_SO_SRC)/src && ./make_nvml
