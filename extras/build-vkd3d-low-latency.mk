@@ -13,6 +13,9 @@ VKD3D_LOW_LATENCY_SOURCE_ARGS = \
   --exclude vkd3d_build.h.in \
   --exclude vkd3d_version.h.in \
 
+VKD3D_LOW_LATENCY_arm64ec_CFLAGS = -marm64x
+VKD3D_LOW_LATENCY_arm64ec_LDFLAGS = -marm64x
+
 VKD3D_LOW_LATENCY_MESON_ARGS = -Db_ndebug=true -Denable_extended_emulation=true
 VKD3D_LOW_LATENCY_i386_MESON_ARGS = --bindir=$(VKD3D_LOW_LATENCY_i386_DST)/lib/wine/vkd3d-low-latency/i386-windows
 VKD3D_LOW_LATENCY_x86_64_MESON_ARGS = --bindir=$(VKD3D_LOW_LATENCY_x86_64_DST)/lib/wine/vkd3d-low-latency/x86_64-windows
