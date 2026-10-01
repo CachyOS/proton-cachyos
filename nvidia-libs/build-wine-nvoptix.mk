@@ -13,7 +13,7 @@ NVOPTIX_DEPENDS = wine
 NVOPTIX_HOST_DEPENDS = wine
 
 $(eval $(call rules-source,nvoptix,$(SRCDIR)/nvidia-libs/wine-nvoptix))
-$(eval $(call rules-nvidia-libs,nvoptix,x86_64,windows))
+$(eval $(call rules-meson-wine,nvoptix,x86_64,windows))
 
 $(OBJ)/.nvoptix-post-source:
 	mkdir -p $(DST_LIBDIR)/wine/nvidia-libs/nvoptix
