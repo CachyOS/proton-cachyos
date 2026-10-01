@@ -12,6 +12,9 @@ DXVK_LOW_LATENCY_arm64ec_SOURCE_DATE_EPOCH := $(shell expr $(arm64ec_SOURCE_DATE
 DXVK_LOW_LATENCY_SOURCE_ARGS = \
   --exclude version.h.in \
 
+DXVK_LOW_LATENCY_arm64ec_CFLAGS = -marm64x
+DXVK_LOW_LATENCY_arm64ec_LDFLAGS = -marm64x
+
 DXVK_LOW_LATENCY_MESON_ARGS = -Db_ndebug=true --force-fallback-for=libdisplay-info
 DXVK_LOW_LATENCY_i386_MESON_ARGS = --bindir=$(DXVK_LOW_LATENCY_i386_DST)/lib/wine/dxvk-low-latency/i386-windows
 DXVK_LOW_LATENCY_x86_64_MESON_ARGS = --bindir=$(DXVK_LOW_LATENCY_x86_64_DST)/lib/wine/dxvk-low-latency/x86_64-windows
