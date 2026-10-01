@@ -1252,7 +1252,6 @@ include $(SRC)/extras/build-d7vk.mk
 ## nvidia-libs
 ##
 ifneq ($(WITHOUT_NVIDIA_LIBS),1)
-include $(SRC)/nvidia-libs/build-dxvk-nvapi.mk
 include $(SRC)/make/rules-nvidia-libs.mk
 include $(SRC)/nvidia-libs/build-nvcuda.mk
 include $(SRC)/nvidia-libs/build-nvenc.mk
