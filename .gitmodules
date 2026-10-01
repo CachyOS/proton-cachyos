@@ -48,9 +48,6 @@
 [submodule "steamrtdeps/libwebp"]
 	path = steamrtdeps/libwebp
 	url = https://github.com/webmproject/libwebp.git
-[submodule "steamrtdeps/pipewire"]
-	path = steamrtdeps/pipewire
-	url = https://github.com/PipeWire/pipewire.git
 [submodule "steamrtdeps/xz"]
 	path = steamrtdeps/xz
 	url = https://github.com/tukaani-project/xz.git
