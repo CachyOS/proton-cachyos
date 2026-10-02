@@ -127,6 +127,9 @@ def make_default_pfx(default_pfx_dir, dist_dir, arm64):
     local_env["WINEPREFIX"] = default_pfx_dir
     local_env["WINEDEBUG"] = "-all"
     local_env["WINEDLLPATH"] = libdir + "vkd3d"
+    local_env["WINEDLLOVERRIDES"] = "winex11.drv,winewayland.drv=d;winemenubuilder=d;"
+    local_env["WINEESYNC"] = "0"
+    local_env["WINEFSYNC"] = "0"
     runtime_args = []
 
 

@@ -1,6 +1,29 @@
 [submodule "wine"]
 	path = wine
-	url = ../wine
+	url = https://github.com/CachyOS/wine-cachyos.git
+[submodule "meson"]
+	path = meson
+	url = https://github.com/mesonbuild/meson.git
+[submodule "nvidia-libs/nvcuda"]
+	path = nvidia-libs/nvcuda
+	url = https://github.com/SveSop/nvcuda.git
+[submodule "nvidia-libs/nvcuda32"]
+	path = nvidia-libs/nvcuda32
+	url = https://github.com/SveSop/nvcuda.git
+	branch = 32bit_only
+[submodule "nvidia-libs/nvenc"]
+	path = nvidia-libs/nvenc
+	url = https://github.com/SveSop/nvenc.git
+[submodule "nvidia-libs/nvenc32"]
+	path = nvidia-libs/nvenc32
+	url = https://github.com/SveSop/nvenc.git
+	branch = old-32-64_version
+[submodule "nvidia-libs/wine-nvml"]
+	path = nvidia-libs/wine-nvml
+	url = https://github.com/Saancreed/wine-nvml.git
+[submodule "nvidia-libs/wine-nvoptix"]
+	path = nvidia-libs/wine-nvoptix
+	url = https://github.com/SveSop/wine-nvoptix.git
 [submodule "dxvk"]
 	path = dxvk
 	url = https://github.com/doitsujin/dxvk.git
@@ -10,6 +33,33 @@
 [submodule "fonts/liberation-fonts"]
 	path = fonts/liberation-fonts
 	url = https://github.com/liberationfonts/liberation-fonts
+[submodule "steamrtdeps/libxml2"]
+	path = steamrtdeps/libxml2
+	url = https://github.com/GNOME/libxml2.git
+[submodule "steamrtdeps/libxkbcommon"]
+	path = steamrtdeps/libxkbcommon
+	url = https://github.com/xkbcommon/libxkbcommon.git
+[submodule "steamrtdeps/wayland-protocols"]
+	path = steamrtdeps/wayland-protocols
+	url = https://gitlab.freedesktop.org/wayland/wayland-protocols.git
+[submodule "steamrtdeps/libpcap"]
+	path = steamrtdeps/libpcap
+	url = https://github.com/the-tcpdump-group/libpcap.git
+[submodule "steamrtdeps/libwebp"]
+	path = steamrtdeps/libwebp
+	url = https://github.com/webmproject/libwebp.git
+[submodule "steamrtdeps/xz"]
+	path = steamrtdeps/xz
+	url = https://github.com/tukaani-project/xz.git
+[submodule "steamrtdeps/speex"]
+	path = steamrtdeps/speex
+	url = https://github.com/xiph/speex.git
+[submodule "steamrtdeps/speexdsp"]
+	path = steamrtdeps/speexdsp
+	url = https://github.com/xiph/speexdsp.git
+[submodule "steamrtdeps/flac"]
+	path = steamrtdeps/flac
+	url = https://github.com/xiph/flac.git
 [submodule "gstreamer"]
 	path = gstreamer
 	url = https://github.com/GStreamer/gstreamer.git
@@ -81,3 +131,30 @@
 [submodule "dxvk-igdext"]
 	path = dxvk-igdext
 	url = https://github.com/GameTechDev/dxvk-igdext
+[submodule "extras/dxvk-sarek"]
+	path = extras/dxvk-sarek
+	url = https://github.com/pythonlover02/DXVK-Sarek.git
+[submodule "extras/d7vk"]
+	path = extras/d7vk
+	url = https://github.com/WinterSnowfall/d7vk.git
+[submodule "extras/dxvk-low-latency"]
+	path = extras/dxvk-low-latency
+	url = https://github.com/netborg-afps/dxvk-low-latency.git
+[submodule "extras/vkd3d-low-latency"]
+	path = extras/vkd3d-low-latency
+	url = https://github.com/netborg-afps/vkd3d-low-latency.git
+[submodule "extras/discord-rpc-bridge"]
+	path = extras/discord-rpc-bridge
+	url = https://github.com/enderice2/rpc-bridge.git
+[submodule "vklayers/pyroveil"]
+	path = vklayers/pyroveil
+	url = https://github.com/HansKristian-Work/pyroveil.git
+[submodule "vklayers/Vulkan-Utility-Libraries"]
+	path = vklayers/Vulkan-Utility-Libraries
+	url = https://github.com/KhronosGroup/Vulkan-Utility-Libraries.git
+[submodule "vklayers/low_latency_layer"]
+	path = vklayers/low_latency_layer
+	url = https://github.com/Korthos-Software/low_latency_layer.git
+[submodule "vklayers/vkbasalt"]
+	path = vklayers/vkbasalt
+	url = https://github.com/DadSchoorse/vkBasalt.git
