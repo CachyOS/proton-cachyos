@@ -1,0 +1,83 @@
+name: Release
+
+on:
+  release:
+    types: [ published ]
+  push:
+    tags:
+      - 'cachyos-*-*-slr'
+
+concurrency:
+  group: ${{ github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build
+    strategy:
+      matrix:
+        include:
+          - name: proton-${{ github.ref_name }}-x86_64
+            cflags: -O3 -march=nocona -mtune=core-avx2
+            rustflags: -Copt-level=3 -Ctarget-cpu=nocona
+
+          - name: proton-${{ github.ref_name }}-x86_64_v3
+            cflags: -O3 -march=x86-64-v3 -mtune=core-avx2
+            rustflags: -Copt-level=3 -Ctarget-cpu=nocona
+
+          - name: proton-${{ github.ref_name }}-arm64
+            configure: >-
+              --without-nvidia-libs
+              --target-arch=arm64
+            runner: 'ubuntu-24.04-arm'
+    uses: ./.github/workflows/_job_build.yml
+    with:
+      name: ${{ matrix.name }}
+      cflags: ${{ matrix.cflags }}
+      rustflags: ${{ matrix.rustflags }}
+      configure: ${{ matrix.configure }}
+      runner: ${{ matrix.runner != '' && matrix.runner || 'ubuntu-24.04' }}
+      continue: false
+
+  release:
+    name: Release
+    needs: build
+    runs-on: ubuntu-slim
+    steps:
+    - uses: actions/checkout@v6
+      with:
+        fetch-depth: 0
+        fetch-tags: true
+    - name: Title
+      id: title
+      shell: bash
+      run: |
+        git fetch origin +refs/tags/*:refs/tags/*
+        python -c "v='${{ github.ref_name }}'.split('-');print('title='+'-'.join([v[1],v[2]]))" >> "$GITHUB_OUTPUT"
+    - name: Create
+      id: create
+      shell: bash
+      run: >-
+        gh
+        release create
+        ${{ github.ref_name }}
+        --latest
+        --title "Version ${{ steps.title.outputs.title }}"
+        --notes-from-tag
+        --verify-tag
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  upload:
+    name: Upload
+    needs: release
+    strategy:
+      matrix:
+        include:
+          - name: proton-${{ github.ref_name }}-x86_64
+          - name: proton-${{ github.ref_name }}-x86_64_v3
+          - name: proton-${{ github.ref_name }}-arm64
+    uses: ./.github/workflows/_job_upload.yml
+    with:
+      version: ${{ github.ref_name }}
+      name: ${{ matrix.name }}
