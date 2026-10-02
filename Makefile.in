@@ -724,12 +724,6 @@ WINEOPENXR_DEPENDS = wine openxr
 
 WINEOPENXR_aarch64_PE_ARCHS = arm64ec i386 x86_64
 
-ifneq ($(findstring i386,$(unix_ARCHS)),)
-WINEOPENXR_CFLAGS = -DWINE_NO_LONG_TYPES
-else
-WINEOPENXR_CFLAGS = -Wno-format -Wno-pointer-to-int-cast
-endif
-
 $(eval $(call rules-source,wineopenxr,$(SRCDIR)/wineopenxr))
 $(eval $(call rules-makedep,wineopenxr,i386))
 $(eval $(call rules-makedep,wineopenxr,x86_64))
