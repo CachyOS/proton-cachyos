@@ -1,0 +1,52 @@
+name: _job_test
+
+on:
+  workflow_call:
+    inputs:
+      name:
+        required: true
+        type: string
+      runner:
+        required: false
+        type: string
+        default: 'ubuntu-24.04'
+      continue:
+        required: true
+        type: boolean
+
+jobs:
+  test:
+    name: Test ${{ inputs.name }}
+    runs-on: ${{ inputs.runner }}
+    continue-on-error: ${{ inputs.continue }}
+    steps:
+
+      - name: Update host
+        run: |
+          sudo apt-get update
+          echo "deb http://archive.ubuntu.com/ubuntu/ noble noble-updates noble-backports main universe restricted multiverse" | sudo tee -a /etc/apt/sources.list
+          sudo apt-get install bubblewrap apparmor apparmor-profiles apparmor-profiles-extra
+          sudo apparmor_parser /usr/share/apparmor/extra-profiles/bwrap-userns-restrict
+
+      - name: Download ${{ matrix.file }} artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: ${{ inputs.name }}.tar.xz
+
+      - name: Setup env
+        run: |
+          git clone https://github.com/Open-Wine-Components/umu-launcher.git -b main
+          cd umu-launcher
+          python3 -m venv venv && source venv/bin/activate && pip3 install -e .
+
+      - name: Extract proton
+        run: |
+          cat ${{ inputs.name }}.tar.xz | tar xvJf -
+
+      - name: Run test
+        run: >-
+          source
+          umu-launcher/venv/bin/activate &&
+          env WINEPREFIX=~/testpfx
+          PROTONPATH="$PWD/${{ inputs.name }}"
+          umu-run cmd.exe /c echo "This is a test"
