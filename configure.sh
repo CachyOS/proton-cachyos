@@ -187,6 +187,27 @@ function configure() {
     if [[ -n "$arg_enable_ccache" ]]; then
       echo "ENABLE_CCACHE := 1"
     fi
+    if [[ -n "$arg_enable_wow64" ]]; then
+      echo "ENABLE_WOW64 := 1"
+    fi
+    if [[ -n "$arg_without_tts" ]]; then
+      echo "WITHOUT_TTS := 1"
+    fi
+    if [[ -n "$arg_without_nvidia_libs" ]]; then
+      echo "WITHOUT_NVIDIA_LIBS := 1"
+    fi
+    if [[ -n "$arg_without_extras" ]]; then
+      echo "WITHOUT_EXTRAS := $arg_without_extras"
+    fi
+    if [[ -n "$arg_without_vklayers" ]]; then
+      echo "WITHOUT_VKLAYERS := $arg_without_vklayers"
+    fi
+    if [[ -n "$arg_without_steamrt_depends" ]]; then
+      echo "WITHOUT_STEAMRT_DEPENDS := 1"
+    fi
+
+    echo "HOST_CFLAGS := ${CFLAGS:--O2 -march=nocona -mtune=core-avx2}"
+    echo "HOST_RUSTFLAGS := ${RUSTFLAGS:--Copt-level=3 -Ctarget-cpu=nocona}"
 
     # Include base
     echo ""
@@ -208,6 +229,12 @@ arg_container_engine=""
 arg_docker_opts=""
 arg_relabel_volumes=""
 arg_enable_ccache=""
+arg_enable_wow64=""
+arg_without_tts=""
+arg_without_nvidia_libs=""
+arg_without_extras=""
+arg_without_vklayers=""
+arg_without_steamrt_depends=""
 arg_help=""
 invalid_args=""
 function parse_args() {
@@ -257,6 +284,22 @@ function parse_args() {
       arg_relabel_volumes="1"
     elif [[ $arg = --enable-ccache ]]; then
       arg_enable_ccache="1"
+    elif [[ $arg = --enable-wow64 ]]; then
+      arg_enable_wow64="1"
+    elif [[ $arg = --without-tts ]]; then
+      arg_without_tts="1"
+    elif [[ $arg = --without-nvidia-libs ]]; then
+      arg_without_nvidia_libs="1"
+    elif [[ $arg = --without-extras ]]; then
+      if [[ $val = "all" ]]; then val=1; fi
+      arg_without_extras="$val"
+      val_used=1
+    elif [[ $arg = --without-vklayers ]]; then
+      if [[ $val = "all" ]]; then val=1; fi
+      arg_without_vklayers="$val"
+      val_used=1
+    elif [[ $arg = --without-steamrt-depends ]]; then
+      arg_without_steamrt_depends="1"
     elif [[ $arg = --proton-sdk-image ]]; then
       val_used=1
       arg_protonsdk_image="$val"
@@ -313,6 +356,21 @@ usage() {
   "$1" "    --relabel-volumes Bind-mounted volumes will be relabeled. Use with caution."
   "$1" ""
   "$1" "    --enable-ccache Mount \$CCACHE_DIR or \$HOME/.ccache inside of the container and use ccache for the build."
+  "$1" ""
+  "$1" "    --enable-wow64 Build wine as wow64 only (excludes i386 unix libs from the build)"
+  "$1" ""
+  "$1" "    --without-tts Disables text-to-speech libraries (OpenFST, VOSK, Kaldi and Piper)"
+  "$1" ""
+  "$1" "    --without-nvidia-libs Disables alternative NVidia libraries (nvcuda, nvenc, nvml, nvoptix)"
+  "$1" ""
+  "$1" "    --without-extras=<list> Comma-separated list of extras to disable, or 'all' to disable everything."
+  "$1" "                            Values: dxvk-sarek | d7vk | dxvk-low-latency | vkd3d-low-latency | discord-rpc-bridge"
+  "$1" ""
+  "$1" "    --without-vklayers=<list> Comma-separated list of vulkan layers to disable, or 'all' to disable everything."
+  "$1" "                              Values: dxvk-nvapi-vkreflex-layer | low_latency_layer | pyroveil | vkbasalt"
+  "$1" ""
+  "$1" "    --without-steamrt-depends Disables bundling extra dependencies for SteamRT4, should be provided by the"
+  "$1" "                              package manager (for native builds)"
   "$1" ""
   "$1" "  Steam Runtime"
   "$1" "    Proton builds that are to be installed & run under the steam client must be built with"

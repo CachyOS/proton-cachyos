@@ -43,6 +43,7 @@ all: all-source
 $(1)-clean::
 $(1)-distclean::
 	rm -rf $$($(2)_SRC)
+	rm  -f $$(OBJ)/.$(1)-{source,post-source}
 
 clean: $(1)-clean
 distclean: $(1)-distclean
