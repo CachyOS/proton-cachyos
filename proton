@@ -39,6 +39,8 @@ from ctypes import c_ssize_t
 from filelock import FileLock
 from random import randrange
 
+import protonfixes
+
 #To enable debug logging, copy "user_settings.sample.py" to "user_settings.py"
 #and edit it if needed.
 
@@ -554,7 +556,6 @@ def get_replace_reg_value(file, key, name, new_value=None):
 class Proton:
     def __init__(self, base_dir):
         self.base_dir = base_dir + "/"
-        self.contrib_dir = self.path("contrib/")
         self.dist_dir = self.path("files/")
         self.bin_dir = self.path("files/bin/")
         self.lib_dir = self.path("files/lib/")
@@ -1013,9 +1014,11 @@ class CompatData:
             self.migrate_user_paths()
 
             if not file_exists(self.prefix_dir + "/dosdevices/c:", follow_symlinks=False):
+                os.makedirs(f"{self.prefix_dir}/dosdevices", exist_ok=True)
                 os.symlink("../drive_c", self.prefix_dir + "/dosdevices/c:")
 
             if not file_exists(self.prefix_dir + "/dosdevices/z:", follow_symlinks=False):
+                os.makedirs(f"{self.prefix_dir}/dosdevices", exist_ok=True)
                 os.symlink("/", self.prefix_dir + "/dosdevices/z:")
 
             # collect configuration info
@@ -1159,11 +1162,6 @@ class CompatData:
                 makedirs(self.prefix_dir + "/drive_c/openxr")
                 try_copy(g_proton.dist_dir + "share/openxr/wineopenxr64.json", "drive_c/openxr",
                         prefix=self.prefix_dir, track_file=tracked_files, link_debug=True)
-
-                #copy contrib dlls
-                try_copy(g_proton.contrib_dir + "amdxcffx64.dll", "drive_c/windows/system32",
-                        prefix=self.prefix_dir, track_file=tracked_files, link_debug=True,
-                        optional=True) # redist versions may not have the contrib dir
 
                 if use_wined3d:
                     dxvkfiles = []
@@ -1395,6 +1393,13 @@ def default_compat_config():
             ret.add("noesync")
 
         if appid in [
+                "1237970", #Titanfall 2
+                ]:
+            for idx, arg in enumerate(sys.argv):
+                if '-northstar' in arg:
+                    ret.add("northstar")
+
+        if appid in [
                 # disable dxvknvapi for titles which dislike it
                 "1088850", #Marvel's Guardians of the Galaxy
                 "1418100", #Swords of Legends Online
@@ -1485,6 +1490,15 @@ def default_compat_config():
                     "4920",
                 ]:
             ret.discard("gamedrive")
+
+    # hack to force gamedrive compat_config always for umu
+    if os.environ.get('UMU_ID', ''):
+        ret.add("gamedrive")
+
+    if "STORE" in os.environ:
+        store = os.environ["STORE"]
+        if store in ["battlenet", "ea", "ubisoft"]:
+            ret.add("writecopy")
 
     return ret
 
@@ -1950,6 +1964,9 @@ class Session:
         if "vkd3dbindlesstb" in self.compat_config:
             append_to_env_str(self.env, "VKD3D_CONFIG", "force_bindless_texel_buffer", ",")
 
+        if "northstar" in self.compat_config:
+            append_to_env_str(self.env, "WINEDLLOVERRIDES", "wsock32=n,b", ";")
+
         if "vkd3dfl12" in self.compat_config:
             if "VKD3D_FEATURE_LEVEL" not in self.env:
                 self.env["VKD3D_FEATURE_LEVEL"] = "12_0"
@@ -1988,6 +2005,9 @@ class Session:
 
         if "nohardwarescheduling" in self.compat_config and "WINE_DISABLE_HARDWARE_SCHEDULING" not in self.env:
             self.env["WINE_DISABLE_HARDWARE_SCHEDULING"] = "1"
+
+        if "writecopy" in self.compat_config:
+            self.env["WINE_SIMULATE_WRITECOPY"] = "1"
 
         if "PROTON_CRASH_REPORT_DIR" in self.env:
             self.env["WINE_CRASH_REPORT_DIR"] = self.env["PROTON_CRASH_REPORT_DIR"]
@@ -2162,7 +2182,26 @@ class Session:
                     "1549250",  # Undecember
                 ]:
             argv = [g_proton.wine_bin, "c:\\Program Files (x86)\\Steam\\steam.exe"]
+        # Don't use steam if it's not a steam game
+        # Prevent this warning for non-steam games:
+        # [S_API FAIL] SteamAPI_Init() failed; no appID found.
+        # Either launch the game from Steam, or put the file steam_appid.txt containing the correct appID in your game folder.
+        elif "UMU_ID" in os.environ and os.environ.get("UMU_USE_STEAM", "0") != "1":
+            if len(sys.argv) >= 3 and sys.argv[2].startswith('/'):
+                log(sys.argv[2])
+                log("Executable is a unix path, launching with 'umu.exe'.")
+                if g_proton.host_pe_arch == "x86_64-windows":
+                    #run with winepreloader directly to avoid restart through start.exe
+                    self.env["WINELOADERNOEXEC"] = "1"
+                    argv = [g_proton.lib_dir + "/wine/x86_64-unix/wine-preloader", g_proton.lib_dir + "/wine/x86_64-unix/wine", "c:\\windows\\system32\\umu.exe"]
+                else:
+                    argv = [g_proton.wine_bin, "c:\\windows\\system32\\umu.exe"]
+            else:
+                log("Executable is inside wine prefix, launching normally.")
+                argv = [g_proton.wine_bin]
         else:
+            if "UMU_ID" in os.environ:
+                append_to_env_str(self.env, "WINEDLLOVERRIDES", "lsteamclient=d", ";")
             if g_proton.host_pe_arch == "x86_64-windows":
                 #run with winepreloader directly to avoid restart through start.exe
                 self.env["WINELOADERNOEXEC"] = "1"
@@ -2203,6 +2242,23 @@ if __name__ == "__main__":
         g_proton.make_default_prefix()
 
     g_session.init_session(sys.argv[1] != "runinprefix")
+
+    protonfixes.setup(g_session.env, "PATH", ld_path_var, prepend_to_env_str)
+    protonfixes.setup_mount_drives(setup_dir_drive)
+    protonfixes.winetricks(g_session.env, g_proton.wine_bin, g_proton.wineserver_bin)
+    # HACK: handle DXVK_FRAME_RATE and VKD3D_FRAME_RATE through DXVK_CONFIG
+    protonfixes.setup_frame_rate(g_session.env, append_to_env_str)
+    g_session.check_environment("PROTON_LOCAL_SHADER_CACHE", "localshadercache")
+    protonfixes.setup_local_shader_cache(g_session.compat_config, g_session.env)
+    g_session.check_environment("PROTON_FFX3_UPGRADE", "ffx3")
+    g_session.check_environment("PROTON_FFX4_UPGRADE", "ffx4")
+    g_session.compat_config.add("fsr4")
+    g_session.check_environment("PROTON_FSR4_UPGRADE", "fsr4")
+    g_session.check_environment("PROTON_DLSS_UPGRADE", "dlss")
+    g_session.check_environment("PROTON_XESS_UPGRADE", "xess")
+    g_session.check_environment("PROTON_USE_OPTISCALER", "optiscaler")
+    protonfixes.setup_upscalers(g_session.compat_config, g_session.env, g_compatdata.base_dir, g_compatdata.prefix_dir)
+    protonfixes.execute()
 
     #determine mode
     rc = 0
