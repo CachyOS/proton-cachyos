@@ -1,3 +1,42 @@
+### Version 11.0-20261005
+* Proton (SLR and Native)
+   - Updated to Proton Experimental [`11.0-20261001`](https://github.com/ValveSoftware/Proton/tree/experimental-11.0-20261001)
+   - The wine submodule has been rebased on top of wine from Proton-EM, instead of picking individual series of patches. This not only makes rebasing considerably easier. Our wine retains the various extra patches it previously had, which are applied on of the new base. Thanks to @BananaWorks07 and @NelloKudo for their combined efforts to upstream stuff which we can later import back into our projects.
+   - Updated `winepipewire.drv` to fix various issues that have been reported since it was included. Thanks to @M0n7y5. PR: https://github.com/CachyOS/wine-cachyos/pull/27
+   - Fixed some issues with Brazilian ABNT keys in `winewayland.drv`. Thanks to @bk304. PRs: https://github.com/CachyOS/wine-cachyos/pull/26, https://github.com/BananaWorks07/wine-valve/pull/2
+   - Updated `d7vk` to the latest [`v2.3`](https://github.com/WinterSnowfall/d7vk/releases/tag/v2.3) release
+   - Updated `dxvk-sarek` to [`v1.13.0-36-gcc9412c9`](https://github.com/pythonlover02/dxvk-sarek/commit/cc9412c9a46a522691ae45791a62bf63887c3d9f)
+   - Updated `dxvk-low-latency` to [`low-latency-framepacing-3.1.1-2`](https://github.com/netborg-afps/dxvk-low-latency/commit/d533db09df35453ed1baa1b0c7d86de2b67bf504)
+   - Updated `vkd3d-low-latency` to [`low-latency-3.0.1-2`](https://github.com/netborg-afps/vkd3d-low-latency/commit/f4e0518cdd35fee0629e25367422bcbc17cbc122)
+   _ Updated `nvidia-libs` to their respective latest versions
+   - Updated `protonfixes` to the version [`1.0.15-1853-gf842871`](https://github.com/Open-Wine-Components/umu-protonfixes/commit/f84287168e3ec4107131893c63cae76f66ea5011) and included a patch to hide wine version from Witcher 3
+   - Fixed videos missing in Witch on the Holy Night. Thanks to @NelloKudo. Issue: https://github.com/CachyOS/proton-cachyos/issues/264
+   - Fixed videos missing in GTA San Andreas. Thanks to @NelloKudo. Issue: https://github.com/CachyOS/proton-cachyos/issues/246
+   - Fixed some cutscenes missing in Wuthering Waves after the 3.7 update. Thanks to @NelloKudo. Issue: https://bugs.winehq.org/show_bug.cgi?id=60408
+   - Imported `icuuc.dll` and `icuin.dll` patches from upstream Wine which will prevent the Albion Online Launcher from crashing. 
+   - Proton-CachyOS will now load `user_settings.py` from the target compatdata directory as well the proton installation directory.
+* Proton (SLR only)
+   - None
+* Proton (Native only)
+   - None
+* Wine (Standalone)
+   - None
+
+Brought to you by The Berries, [🍌](https://github.com/BananaWorks07) [🍈](https://github.com/NelloKudo) [🍋](https://github.com/loathingKernel), and their friends.
+
+> [!IMPORTANT]
+> I know that we have a lot of different packages that might cause confusion. My suggestion is to be conservative and use `x86_64`.
+> Feel free to experiment and see which fits better for your system, of course.
+
+> [!NOTE]
+> * For Wayland specific flags and options, please refer to: https://github.com/Etaash-mathamsetty/Proton/blob/em-10/docs/EM-ADDITIONS.md
+> * For FSR4 related documentation, please refer to: https://github.com/Etaash-mathamsetty/Proton/blob/em-10/docs/FSR4.md
+> * For `dxvk-sarek` specific options to tune its behavior refer to: https://github.com/pythonlover02/DXVK-Sarek?tab=readme-ov-file#shader-compilation
+> * For `dxvk-low-latency` related options to tune its behavior refer to: https://github.com/netborg-afps/dxvk-low-latency?tab=readme-ov-file#dxvk-low-latency
+> * For `vkd3d-low-latency` related options to tune its behavior refer to: https://github.com/netborg-afps/vkd3d-low-latency?tab=readme-ov-file#vkd3d-low-latency
+
+---
+
 ### Version 11.0-20260703
 * Proton (SLR and Native)
    - Bugfix release based on [`cachyos-11.0-20260702-slr`](https://github.com/CachyOS/proton-cachyos/releases/tag/cachyos-11.0-20260702-slr)
