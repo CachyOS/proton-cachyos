@@ -1,0 +1,79 @@
+From fab0777aa619671a27b22c7f6cc70f125cc610d5 Mon Sep 17 00:00:00 2001
+From: Gabriel Maia <gabrielmaialva33@gmail.com>
+Date: Sat, 3 Oct 2026 14:13:38 -0300
+Subject: [PATCH 1/2] Add game fix for The Witcher 3: Wild Hunt (292030)
+
+The 5.0 update looks up wine_get_version and, when it finds it, skips
+Streamline (DLSS SR/RR, DLSS-G, Reflex) and turns off ray tracing, path
+tracing and FSR frame generation. Hide the Wine exports, and disable NVAPI
+when no NVIDIA driver is loaded, with the same check Proton uses for this game.
+
+Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>
+---
+ gamefixes-steam/292030.py | 24 ++++++++++++++++++++++++
+ 1 file changed, 24 insertions(+)
+ create mode 100644 gamefixes-steam/292030.py
+
+diff --git a/gamefixes-steam/292030.py b/gamefixes-steam/292030.py
+new file mode 100644
+index 00000000..42ed8699
+--- /dev/null
++++ b/gamefixes-steam/292030.py
+@@ -0,0 +1,24 @@
++"""Game fix for The Witcher 3: Wild Hunt
++
++The 5.0 update looks up wine_get_version. When it finds it, the game never
++initializes Streamline (DLSS SR/RR, DLSS-G, Reflex) and turns off ray tracing,
++path tracing and FSR frame generation. Hide the Wine exports so it takes the
++same path as on Windows.
++"""
++
++from protonfixes import util
++
++
++def main() -> None:
++    util.protontricks('hidewineexports=enable')
++
++    # Without Wine, the game initializes NVAPI and retries in a loop when
++    # dxvk-nvapi cannot, which hangs the menu on non-NVIDIA GPUs.
++    # Same check as Proton's disablenvapi for this game.
++    try:
++        with open('/proc/modules', encoding='ascii') as f:
++            drivers = {line.partition(' ')[0] for line in f.read().splitlines()}
++    except OSError:
++        drivers = set()
++    if not drivers.intersection({'nvidia', 'nouveau', 'nova'}):
++        util.disable_nvapi()
+
+From 7686472bff271ea93085103ca72a304369715823 Mon Sep 17 00:00:00 2001
+From: Gabriel Maia <gabrielmaialva33@gmail.com>
+Date: Sat, 3 Oct 2026 20:57:58 -0300
+Subject: [PATCH 2/2] Drop the NVAPI part from the Witcher 3 fix
+
+Valve's Proton already disables NVAPI for this game when no NVIDIA driver
+is loaded (ValveSoftware/Proton@e4bd4fc).
+
+Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>
+---
+ gamefixes-steam/292030.py | 11 -----------
+ 1 file changed, 11 deletions(-)
+
+diff --git a/gamefixes-steam/292030.py b/gamefixes-steam/292030.py
+index 42ed8699..b875dbd4 100644
+--- a/gamefixes-steam/292030.py
++++ b/gamefixes-steam/292030.py
+@@ -11,14 +11,3 @@
+ 
+ def main() -> None:
+     util.protontricks('hidewineexports=enable')
+-
+-    # Without Wine, the game initializes NVAPI and retries in a loop when
+-    # dxvk-nvapi cannot, which hangs the menu on non-NVIDIA GPUs.
+-    # Same check as Proton's disablenvapi for this game.
+-    try:
+-        with open('/proc/modules', encoding='ascii') as f:
+-            drivers = {line.partition(' ')[0] for line in f.read().splitlines()}
+-    except OSError:
+-        drivers = set()
+-    if not drivers.intersection({'nvidia', 'nouveau', 'nova'}):
+-        util.disable_nvapi()
