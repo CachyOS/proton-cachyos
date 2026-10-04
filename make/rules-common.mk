@@ -107,15 +107,8 @@ $(2)_$(3)-unix_LIBFLAGS = $$(foreach d,$$($(2)_$(3)_DEPS),-Wl,-rpath-link=$$($$(
 # RC and WIDL are intentionally always using windows target, as their
 # unix version doesn't exist.
 
-# HACK: forcing cargo to use gcc-10 as a linker because it's very unhappy about
-# Sniper's gcc-14 and lack of libgcc_s. The only version we have guarantee for
-# with SteamRT Sniper is the one from gcc 10.
-#
-# We also always need to specify the linker for the host architecture - a bunch
-# of crates build host-native bits via build.rs.
-
 $(2)_$(3)_ENV = \
-    $$(CARGO_LINKERS) \
+    CARGO_TARGET_$$(call toupper,$$($(3)-$(4)_CARGO_TARGET))_LINKER="$$($(3)-$(4)_TARGET)-gcc" \
     CCACHE_BASEDIR="$$(CCACHE_BASEDIR)" \
     STRIP="$$(STRIP)" \
     AR="$$($(3)-$(4)_TARGET)-ar" \
@@ -129,7 +122,7 @@ $(2)_$(3)_ENV = \
     PATH="$$(call list-join,:,$$(foreach d,$$($(2)_$(3)_HOST_DEPS),$$($$(d)_$$(HOST_ARCH)_BINDIR)),,:):$$$$PATH" \
     LD_LIBRARY_PATH="$$(call list-join,:,$$(foreach d,$$($(2)_$(3)_HOST_DEPS),$$($$(d)_$$(HOST_ARCH)_LIBDIR)/$$($$(HOST_ARCH)-unix_LIBDIR)),,:)$$$$LD_LIBRARY_PATH" \
     PKG_CONFIG_PATH="$$(call list-join,:,$$(foreach d,$$($(2)_$(3)_DEPS),$$($$(d)_$(3)_LIBDIR)/$$($(3)-$(4)_LIBDIR)/pkgconfig)):$$(call list-join,:,$$(foreach d,$$($(2)_$(3)_DEPS),$$($$(d)_$(3)_DST)/share/pkgconfig))" \
-    PKG_CONFIG_LIBDIR="/usr/lib/$$($(3)-$(4)_LIBDIR)/pkgconfig:/usr/share/pkgconfig" \
+    PKG_CONFIG_LIBDIR="/usr/$$($(3)-$(4)_LIBDIR_ARCH)/pkgconfig:/usr/share/pkgconfig" \
     CMAKE_PREFIX_PATH="$$(call list-join,:,$$(foreach d,$$($(2)_$(3)_DEPS),$$($$(d)_$(3)_DST)))" \
     CFLAGS="$$($(2)_$(3)_INCFLAGS) $$($(2)_CFLAGS) $$($(3)_CFLAGS) $$(CFLAGS) $$($(2)_$(3)_CFLAGS)" \
     CPPFLAGS="$$($(2)_$(3)_INCFLAGS) $$($(2)_CFLAGS) $$($(3)_CFLAGS) $$(CFLAGS) $$($(2)_$(3)_CFLAGS)" \
@@ -158,7 +151,7 @@ $(2)_$(3)_ENV += \
     i386_CPPFLAGS="$$($(2)_i386_INCFLAGS) $$($(2)_CFLAGS) $$(i386_CFLAGS) $$(CFLAGS)" \
     i386_CXXFLAGS="$$($(2)_i386_INCFLAGS) -std=c++17 $$($(2)_CFLAGS) $$(i386_CFLAGS) $$(CFLAGS)" \
     i386_LDFLAGS="$$($(2)_i386-windows_LIBFLAGS) $$($(2)_i386_LIBFLAGS) $$($(2)_LDFLAGS) $$(i386_LDFLAGS) $$(LDFLAGS)" \
-    i386_PKG_CONFIG_LIBDIR="/usr/lib/$$(i386-windows_LIBDIR)/pkgconfig:/usr/share/pkgconfig" \
+    i386_PKG_CONFIG_LIBDIR="/usr/lib32/pkgconfig:/usr/share/pkgconfig" \
     x86_64_AR="$$(x86_64-windows_TARGET)-ar" \
     x86_64_RANLIB="$$(x86_64-windows_TARGET)-ranlib" \
     x86_64_CC="$$(x86_64-windows_TARGET)-gcc" \
@@ -168,7 +161,7 @@ $(2)_$(3)_ENV += \
     x86_64_CPPFLAGS="$$($(2)_x86_64_INCFLAGS) $$($(2)_CFLAGS) $$(x86_64_CFLAGS) $$(CFLAGS)" \
     x86_64_CXXFLAGS="$$($(2)_x86_64_INCFLAGS) -std=c++17 $$($(2)_CFLAGS) $$(x86_64_CFLAGS) $$(CFLAGS)" \
     x86_64_LDFLAGS="$$($(2)_x86_64-windows_LIBFLAGS) $$($(2)_x86_64_LIBFLAGS) $$($(2)_LDFLAGS) $$(x86_64_LDFLAGS) $$(LDFLAGS)" \
-    x86_64_PKG_CONFIG_LIBDIR="/usr/lib/$$(x86_64-windows_LIBDIR)/pkgconfig:/usr/share/pkgconfig" \
+    x86_64_PKG_CONFIG_LIBDIR="/usr/lib64/pkgconfig:/usr/share/pkgconfig" \
     aarch64_CFLAGS="$$($(2)_aarch64_INCFLAGS) $$($(2)_CFLAGS) $$(aarch64_CFLAGS) $$(CFLAGS)" \
     aarch64_CPPFLAGS="$$($(2)_aarch64_INCFLAGS) $$($(2)_CFLAGS) $$(aarch64_CFLAGS) $$(CFLAGS)" \
     aarch64_CXXFLAGS="$$($(2)_aarch64_INCFLAGS) -std=c++17 $$($(2)_CFLAGS) $$(aarch64_CFLAGS) $$(CFLAGS)" \
@@ -192,8 +185,8 @@ else
 install-strip = $(OBJCOPY) $(OBJCOPY_FLAGS) --strip-debug $(1) $(2)/$(notdir $(1)) && rm -f $(2)/$(notdir $(1)).debug
 endif
 
-i386-unix_TARGET := i686-linux-gnu
-x86_64-unix_TARGET := x86_64-linux-gnu
+i386-unix_TARGET := i686-pc-linux-gnu
+x86_64-unix_TARGET := x86_64-pc-linux-gnu
 aarch64-unix_TARGET := aarch64-linux-gnu
 i386-windows_TARGET := i686-w64-mingw32
 x86_64-windows_TARGET := x86_64-w64-mingw32
@@ -201,7 +194,9 @@ aarch64-windows_TARGET := aarch64-w64-mingw32
 arm64ec-windows_TARGET := arm64ec-w64-mingw32
 
 i386-unix_LIBDIR := i386-linux-gnu
+i386-unix_LIBDIR_ARCH := lib32
 x86_64-unix_LIBDIR := x86_64-linux-gnu
+x86_64-unix_LIBDIR_ARCH := lib64
 aarch64-unix_LIBDIR := aarch64-linux-gnu
 i386-windows_LIBDIR := i386-w64-mingw32
 x86_64-windows_LIBDIR := x86_64-w64-mingw32

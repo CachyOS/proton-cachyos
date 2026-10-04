@@ -34,7 +34,7 @@ $$(OBJ)/.$(1)-$(3)-build:
 	@echo ":: building $(1)-$(3)..." >&2
 	rsync -arx "$$($(2)_SRC)/" "$$($(2)_$(3)_OBJ)/"
 	env $$($(2)_$(3)_ENV) \
-	$$(MAKE) -C "$$($(2)_$(3)_OBJ)" LIBRARIES="$$($(2)_LDFLAGS)"
+	$$(MAKE) -j$$(SUBJOBS) -C "$$($(2)_$(3)_OBJ)" LIBRARIES="$$($(2)_LDFLAGS)"
 	cd "$$($(2)_$(3)_OBJ)" && touch "$(basename $(4)).spec" && env $$($(2)_$(3)_ENV) \
 	$$(WINE_$$(HOST_ARCH)_OBJ)/tools/winebuild/winebuild --$(lastword $(subst ., ,$(4))) \
 	    --fake-module -E "$(basename $(4)).spec" -o "$(4).fake"

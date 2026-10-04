@@ -626,7 +626,7 @@ FFMPEG_CONFIGURE_ARGS += \
 	--enable-protocol=rtsp \
 
 FFMPEG_i386-unix_CONFIGURE_ARGS := \
-	--cross-prefix=i686-linux-gnu- \
+	--cross-prefix=i686-pc-linux-gnu- \
 	--arch=x86 \
 	--target-os=linux
 
@@ -634,7 +634,7 @@ FFMPEG_i386-unix_CONFIGURE_ARGS += \
 	--optflags="$(CFLAGS) $(i386_CFLAGS)"
 
 FFMPEG_x86_64-unix_CONFIGURE_ARGS := \
-	--cross-prefix=x86_64-linux-gnu- \
+	--cross-prefix=x86_64-pc-linux-gnu- \
 	--arch=x86_64 \
 	--target-os=linux
 
@@ -819,8 +819,8 @@ $(eval $(call rules-cmake,piper,x86_64,unix))
 $(eval $(call rules-cmake,piper,aarch64,unix))
 
 $(OBJ)/.piper-x86_64-post-build:
-	mkdir -p $(PIPER_x86_64_DST)/lib/$(x86_64-unix_TARGET)
-	mv $(PIPER_x86_64_DST)/*.so* $(PIPER_x86_64_DST)/lib/$(x86_64-unix_TARGET)
+	mkdir -p $(PIPER_x86_64_DST)/lib/$(x86_64-unix_LIBDIR)
+	mv $(PIPER_x86_64_DST)/*.so* $(PIPER_x86_64_DST)/lib/$(x86_64-unix_LIBDIR)
 	mkdir -p $(DST_DIR)/share
 	cp -a $(PIPER_x86_64_DST)/{espeak-ng-data,libtashkeel_model.ort} $(DST_DIR)/share/
 	touch $@
@@ -937,9 +937,6 @@ endif # WITHOUT_TTS
 ##
 ## wine
 ##
-
-# HACK: glib 2.0 in the runtime is old and causes a lot of errors with a newer GCC
-WINE_CFLAGS += -Wno-discarded-qualifiers
 
 WINE_SOURCE_ARGS = \
   --exclude configure \
@@ -1599,7 +1596,7 @@ $(FONTS_OBJ)/source-han/%.ttf: $$(%.ttf_CIDFONT) $$(%.ttf_FEATURES) $$(%.ttf_SEQ
 	mkdir -p $(FONTS_OBJ)/source-han
 	# Do not immediately create the target file, so that make is interrupted
 	# it will restart again
-	afdko makeotfexe -f $($(notdir $@)_CIDFONT) -omitMacNames -ff $($(notdir $@)_FEATURES) \
+	afdko makeotf -f $($(notdir $@)_CIDFONT) -omitMacNames -ff $($(notdir $@)_FEATURES) \
 		-lic ADOBE -mf $($(notdir $@)_MENUNAMEDB) -r -nS -cs 25 -ch $($(notdir $@)_UNISOURCE) \
 		-ci $($(notdir $@)_SEQUENCES) -o $@.tmp
 	afdko tx -cff +S -no_futile $($(notdir $@)_CIDFONT) $@.cff
@@ -2090,7 +2087,6 @@ ifeq ($(ENABLE_CCACHE),1)
 	export CCACHE_DIR := $(if $(CCACHE_DIR),$(CCACHE_DIR),$(HOME)/.ccache)
 	override DOCKER_OPTS := -v $(CCACHE_DIR):$(CCACHE_DIR)$(CONTAINER_MOUNT_OPTS) $(CCACHE_ENV) -e CCACHE_DIR=$(CCACHE_DIR) $(DOCKER_OPTS)
 else
-	export CCACHE_DISABLE := 1
 	override DOCKER_OPTS := $(CCACHE_ENV) -e CCACHE_DISABLE=1 $(DOCKER_OPTS)
 endif
 
@@ -2105,9 +2101,6 @@ ifeq ($(CONTAINER_ENGINE),)
 	CONTAINER_ENGINE := docker
 endif
 
-DOCKER_BASE = $(CONTAINER_ENGINE) run --rm -v $(SRC):$(SRC)$(CONTAINER_MOUNT_OPTS) -v $(OBJ):$(OBJ)$(CONTAINER_MOUNT_OPTS) \
-                -w $(OBJ) -e MAKEFLAGS \
-                $(DOCKER_OPTS) $(STEAMRT_IMAGE)
 
 .PHONY: dist deploy redist symstore-tarball
 .DEFAULT dist deploy redist symstore-tarball:
