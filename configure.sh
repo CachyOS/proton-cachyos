@@ -193,6 +193,9 @@ function configure() {
     if [[ -n "$arg_without_tts" ]]; then
       echo "WITHOUT_TTS := 1"
     fi
+    if [[ -n "$arg_without_extras" ]]; then
+      echo "WITHOUT_EXTRAS := $arg_without_extras"
+    fi
 
     echo "HOST_CFLAGS := ${CFLAGS:--O2 -march=nocona -mtune=core-avx2}"
     echo "HOST_RUSTFLAGS := ${RUSTFLAGS:--Copt-level=3 -Ctarget-cpu=nocona}"
@@ -219,6 +222,7 @@ arg_relabel_volumes=""
 arg_enable_ccache=""
 arg_enable_wow64=""
 arg_without_tts=""
+arg_without_extras=""
 arg_help=""
 invalid_args=""
 function parse_args() {
@@ -272,6 +276,10 @@ function parse_args() {
       arg_enable_wow64="1"
     elif [[ $arg = --without-tts ]]; then
       arg_without_tts="1"
+    elif [[ $arg = --without-extras ]]; then
+      if [[ $val = all ]]; then val=1; fi
+      arg_without_extras="$val"
+      val_used=1
     elif [[ $arg = --proton-sdk-image ]]; then
       val_used=1
       arg_protonsdk_image="$val"
@@ -332,6 +340,9 @@ usage() {
   "$1" "    --enable-wow64 Build wine as wow64 only (excludes i386 unix libs from the build)"
   "$1" ""
   "$1" "    --without-tts Disables text-to-speech libraries (OpenFST, VOSK, Kaldi and Piper)"
+  "$1" ""
+  "$1" "    --without-extras=<list> Comma-separated list of extras to disable, or 'all' to disable everything."
+  "$1" "                            Values: all"
   "$1" ""
   "$1" "  Steam Runtime"
   "$1" "    Proton builds that are to be installed & run under the steam client must be built with"
