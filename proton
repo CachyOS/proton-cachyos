@@ -2037,11 +2037,6 @@ class Session:
         if "pipewire" not in self.compat_config:
             self.env.setdefault("WINE_AUDIO_DRIVER", "pulse,alsa")
 
-        if os.environ.get("SteamGameId", 0) in [
-                "462780", #Darksiders Warmastered Edition
-                ]:
-            self.env.setdefault("PROTON_MEDIA_FORCE_GST", "1")
-
         self.check_environment("DXVK_NVAPI_VKREFLEX", "vkreflex")
         if "vkreflex" in self.compat_config and "disablenvapi" not in self.compat_config and utilities.is_driver_loaded({'nvidia'}):
             utilities.add_vk_implicit_layer(prepend_to_env_str, self.env, g_proton.dist_dir + "share/dxvk-nvapi-vkreflex-layer/implicit_layer.d")
