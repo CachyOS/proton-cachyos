@@ -1213,6 +1213,14 @@ $(OBJ)/.vkd3d-proton-post-source:
 
 
 ##
+## extras
+##
+
+ifneq ($(WITHOUT_EXTRAS),1)
+endif # WITHOUT_EXTRAS
+
+
+##
 ## FEX
 ##
 
