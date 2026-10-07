@@ -170,6 +170,14 @@ $(eval $(call rules-source,patches,$(SRCDIR)/patches))
 
 
 ##
+## steamrtdeps
+##
+
+ifneq ($(WITHOUT_STEAMRT_DEPENDS),1)
+endif # WITHOUT_STEAMRT_DEPENDS
+
+
+##
 ## dav1d
 ##
 

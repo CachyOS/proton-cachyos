@@ -196,6 +196,9 @@ function configure() {
     if [[ -n "$arg_without_extras" ]]; then
       echo "WITHOUT_EXTRAS := $arg_without_extras"
     fi
+    if [[ -n "$arg_without_steamrt_depends" ]]; then
+      echo "WITHOUT_STEAMRT_DEPENDS := 1"
+    fi
 
     echo "HOST_CFLAGS := ${CFLAGS:--O2 -march=nocona -mtune=core-avx2}"
     echo "HOST_RUSTFLAGS := ${RUSTFLAGS:--Copt-level=3 -Ctarget-cpu=nocona}"
@@ -223,6 +226,7 @@ arg_enable_ccache=""
 arg_enable_wow64=""
 arg_without_tts=""
 arg_without_extras=""
+arg_without_steamrt_depends=""
 arg_help=""
 invalid_args=""
 function parse_args() {
@@ -280,6 +284,8 @@ function parse_args() {
       if [[ $val = all ]]; then val=1; fi
       arg_without_extras="$val"
       val_used=1
+    elif [[ $arg = --without-steamrt-depends ]]; then
+      arg_without_steamrt_depends="1"
     elif [[ $arg = --proton-sdk-image ]]; then
       val_used=1
       arg_protonsdk_image="$val"
@@ -343,6 +349,9 @@ usage() {
   "$1" ""
   "$1" "    --without-extras=<list> Comma-separated list of extras to disable, or 'all' to disable everything."
   "$1" "                            Values: all | dxvk-sarek | d7vk | dxvk-low-latency | vkd3d-low-latency"
+  "$1" ""
+  "$1" "    --without-steamrt-depends Disable the inclusion of additonal dependencies for SteamRT4,"
+  "$1" "                              useful for debugging and native builds without the Steam Runtime"
   "$1" ""
   "$1" "  Steam Runtime"
   "$1" "    Proton builds that are to be installed & run under the steam client must be built with"
