@@ -1709,14 +1709,21 @@ class Session:
     def setup_logging(self, *, append_forever):
         basedir = self.env.get("PROTON_LOG_DIR", os.environ["HOME"])
 
+        try:
+            with open(g_proton.version_file, "r") as f:
+                version = f.readline().strip().split()[1]
+            version = "-" + version
+        except:
+            version = ""
+
         if append_forever:
             #SteamGameId is not always available
-            lfile_path = basedir + "/steam-proton.log"
+            lfile_path = basedir + "/steam-proton" + version + ".log"
         else:
             if "SteamGameId" not in os.environ:
                 return False
 
-            lfile_path = basedir + "/steam-" + os.environ["SteamGameId"] + ".log"
+            lfile_path = basedir + "/steam-" + os.environ["SteamGameId"] + version + ".log"
 
             if file_exists(lfile_path, follow_symlinks=False):
                 os.remove(lfile_path)
