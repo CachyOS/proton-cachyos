@@ -24,6 +24,9 @@
 [submodule "nvidia-libs/wine-nvoptix"]
 	path = nvidia-libs/wine-nvoptix
 	url = https://github.com/SveSop/wine-nvoptix.git
+[submodule "zluda-libs/hipwine"]
+	path = zluda-libs/hipwine
+	url = https://github.com/opcod3/hipwine.git
 [submodule "dxvk"]
 	path = dxvk
 	url = https://github.com/doitsujin/dxvk.git
