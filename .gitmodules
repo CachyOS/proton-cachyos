@@ -146,6 +146,18 @@
 [submodule "steam-audio/steam-audio"]
 	path = steam-audio/steam-audio
 	url = https://github.com/ValveSoftware/steam-audio.git
+[submodule "steam-audio/pffft"]
+	path = steam-audio/pffft
+	url = https://github.com/marton78/pffft.git
+[submodule "steam-audio/zlib"]
+	path = steam-audio/zlib
+	url = https://github.com/madler/zlib.git
+[submodule "steam-audio/libmysofa"]
+	path = steam-audio/libmysofa
+	url = https://github.com/hoene/libmysofa.git
+[submodule "steam-audio/flatbuffers"]
+	path = steam-audio/flatbuffers
+	url = https://github.com/google/flatbuffers.git
 [submodule "vklayers/pyroveil"]
 	path = vklayers/pyroveil
 	url = https://github.com/HansKristian-Work/pyroveil.git
