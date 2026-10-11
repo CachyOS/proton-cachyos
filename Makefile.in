@@ -1295,6 +1295,15 @@ endif # WITHOUT_NVIDIA_LIBS
 
 
 ##
+## zluda-libs
+##
+
+ifneq ($(WITHOUT_ZLUDA_LIBS),1)
+include $(SRC)/zluda-libs/build-hipwine.mk
+endif # WITHOUT_ZLUDA_LIBS
+
+
+##
 ## vklayers
 ##
 

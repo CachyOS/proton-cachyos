@@ -1,0 +1,60 @@
+diff --git a/dlls/amdhip/amdhip64.spec b/dlls/amdhip/amdhip64_7.spec
+similarity index 100%
+rename from dlls/amdhip/amdhip64.spec
+rename to dlls/amdhip/amdhip64_7.spec
+diff --git a/dlls/amdhip/meson.build b/dlls/amdhip/meson.build
+index 6be4e38..1cdd7b8 100644
+--- a/dlls/amdhip/meson.build
++++ b/dlls/amdhip/meson.build
+@@ -7,13 +7,13 @@ thread_dep = dependency('threads')
+ amdhip_dep = meson.get_compiler('c').find_library('amdhip64', dirs: ['/opt/rocm/lib'])
+ 
+ shared_library(
+-  'amdhip_7.dll',
++  'amdhip64_7.dll',
+   amdhip_src,
+   name_prefix: '',
+   dependencies: [ amdhip_dep, thread_dep, lib_dl],
+   include_directories : [ include_path, '/opt/rocm/include' ],
+-  link_depends: ['amdhip64.spec'],
+-  link_args: [meson.current_source_dir() / 'amdhip64.spec'],
++  link_depends: ['amdhip64_7.spec'],
++  link_args: [meson.current_source_dir() / 'amdhip64_7.spec'],
+   install: true,
+   install_dir: install_dir_unix,
+   c_args              : [ '-D__HIP_PLATFORM_AMD__' ],
+diff --git a/dlls/amdhip_fdll/amdhip64.rc b/dlls/amdhip_fdll/amdhip64.rc
+index 23e07f7..36da0cd 100644
+--- a/dlls/amdhip_fdll/amdhip64.rc
++++ b/dlls/amdhip_fdll/amdhip64.rc
+@@ -21,7 +21,7 @@
+ 
+ #include "winver.h"
+ 
+-#define WINE_FILENAME_STR "amdhip64.dll"
++#define WINE_FILENAME_STR "amdhip64_7.dll"
+ #define WINE_FILEDESCRIPTION_STR "AMD Accelerated Parallel Processing amdhip64 Runtime"
+ 
+ #define WINE_FILEVERSION      10,0,3661,0
+diff --git a/dlls/amdhip_fdll/meson.build b/dlls/amdhip_fdll/meson.build
+index f2c58f0..488958e 100644
+--- a/dlls/amdhip_fdll/meson.build
++++ b/dlls/amdhip_fdll/meson.build
+@@ -14,14 +14,14 @@ amdhip_res = custom_target(
+ amdhip_def = custom_target(
+   'amdhip.def',
+   output: 'amdhip.def',
+-  input: '../amdhip/amdhip64.spec',
++  input: '../amdhip/amdhip64_7.spec',
+   command: [winebuild, target_arch, '-w', '--def', '-o', '@OUTPUT@', '-E', '@INPUT@'],
+   install: false,
+ )
+ 
+ custom_target(
+-  'amdhip64.dll',
+-  output: 'amdhip64.dll',
++  'amdhip64_7.dll',
++  output: 'amdhip64_7.dll',
+   input: [amdhip_def, amdhip_res],
+   command: [
+     winebuild,
