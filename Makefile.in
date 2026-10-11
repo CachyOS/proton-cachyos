@@ -1298,6 +1298,7 @@ endif # WITHOUT_NVIDIA_LIBS
 ## zluda-libs
 ##
 
+WITHOUT_ZLUDA_LIBS ?= 1
 ifneq ($(WITHOUT_ZLUDA_LIBS),1)
 include $(SRC)/zluda-libs/build-hipwine.mk
 include $(SRC)/zluda-libs/bundle-zluda.mk
