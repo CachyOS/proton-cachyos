@@ -196,6 +196,9 @@ function configure() {
     if [[ -n "$arg_without_nvidia_libs" ]]; then
       echo "WITHOUT_NVIDIA_LIBS := 1"
     fi
+    if [[ -n "$arg_without_zluda_libs" ]]; then
+      echo "WITHOUT_ZLUDA_LIBS := $arg_without_zluda_libs"
+    fi
     if [[ -n "$arg_without_extras" ]]; then
       echo "WITHOUT_EXTRAS := $arg_without_extras"
     fi
@@ -232,6 +235,7 @@ arg_enable_ccache=""
 arg_enable_wow64=""
 arg_without_tts=""
 arg_without_nvidia_libs=""
+arg_without_zluda_libs=""
 arg_without_extras=""
 arg_without_vklayers=""
 arg_without_steamrt_depends=""
@@ -290,6 +294,10 @@ function parse_args() {
       arg_without_tts="1"
     elif [[ $arg = --without-nvidia-libs ]]; then
       arg_without_nvidia_libs="1"
+    elif [[ $arg = --without-zluda-libs ]]; then
+      if [[ $val = all ]]; then val=1; fi
+      arg_without_zluda_libs="$val"
+      val_used=1
     elif [[ $arg = --without-extras ]]; then
       if [[ $val = all ]]; then val=1; fi
       arg_without_extras="$val"
@@ -362,6 +370,8 @@ usage() {
   "$1" "    --without-tts Disables text-to-speech libraries (OpenFST, VOSK, Kaldi and Piper)"
   "$1" ""
   "$1" "    --without-nvidia-libs Disables alternative NVidia libraries (nvcuda, nvenc, nvml, nvoptix)"
+  "$1" ""
+  "$1" "    --without-zluda-libs Disables the inclusion of ZLUDA and related libraries (PhysX on AMD)"
   "$1" ""
   "$1" "    --without-extras=<list> Comma-separated list of extras to disable, or 'all' to disable everything."
   "$1" "                            Values: all | dxvk-sarek | d7vk | dxvk-low-latency | vkd3d-low-latency | discord-rpc-bridge"
