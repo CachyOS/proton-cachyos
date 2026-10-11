@@ -1272,6 +1272,12 @@ include $(SRC)/extras/build-discord-rpc-bridge.mk
 endif # WITHOUT_EXTRAS
 
 
+##
+## steam-audio
+##
+
+include $(SRC)/steam-audio/build-steam-audio.mk
+
 
 ##
 ## nvidia-libs
