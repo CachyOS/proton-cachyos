@@ -1262,6 +1262,11 @@ class CompatData:
                 use_nvenc = "nvenc" in g_session.compat_config and allow_nvidia_libs
                 use_nvcuda = ("nvcuda" in g_session.compat_config and allow_nvidia_libs) or use_nvenc or use_nvoptix
 
+                allow_zluda = os.path.isdir(g_proton.lib_dir + "wine/zluda-libs")
+                use_zluda = "zluda" in g_session.compat_config and allow_zluda
+                if use_zluda:
+                    use_nvcuda = use_nvenc = use_nvml = use_nvoptix = use_nvapi = False
+
                 # If the user requested the NVAPI be available, copy it into place.
                 # If they didn't, clean up any stray nvapi DLLs.
                 if use_nvapi:
@@ -1275,6 +1280,13 @@ class CompatData:
                     g_session.dlloverrides["nvofapi64"] = "n"
                     g_session.dlloverrides["nvapi"] = "n"
                     g_session.dlloverrides["nvcuda"] = "b"
+                elif use_zluda:
+                    try_copy(g_proton.arch_pe_dir("wine/zluda-libs/zluda", False) + "nvapi64.dll", "drive_c/windows/system32",
+                            prefix=self.prefix_dir, track_file=tracked_files, link_debug=True)
+                    try_copy(g_proton.arch_pe_dir("wine/zluda-libs/zluda", True) + "nvapi.dll", "drive_c/windows/syswow64",
+                            prefix=self.prefix_dir, track_file=tracked_files, link_debug=True)
+                    g_session.dlloverrides["nvapi64"] = "n"
+                    g_session.dlloverrides["nvapi"] = "n"
                 else:
                     nvapi64_dll = self.prefix_dir + "drive_c/windows/system32/nvapi64.dll"
                     nvapi32_dll = self.prefix_dir + "drive_c/windows/syswow64/nvapi.dll"
@@ -1287,10 +1299,24 @@ class CompatData:
                     if file_exists(nvapi32_dll + '.debug', follow_symlinks=False):
                         os.unlink(nvapi32_dll + '.debug')
 
+                if use_zluda:
+                    try_copy(g_proton.arch_pe_dir("wine/zluda-libs/hipwine", False) + "amdhip64_7.dll.so", "drive_c/windows/system32/amdhip64_7.dll",
+                            prefix=self.prefix_dir, track_file=tracked_files, link_debug=True)
+                    g_session.dlloverrides["amdhip64_7"] = "n"
+                    g_session.env["ZLUDA64_PATH"] = g_proton.lib_dir + "wine/zluda-libs/zluda/x86_64-windows/"
+                else:
+                    amdhip64_7_dll = self.prefix_dir + "drive_c/windows/system32/amdhip64_7.dll"
+                    if file_exists(amdhip64_7_dll, follow_symlinks=False):
+                        os.unlink(amdhip64_7_dll)
+
                 if use_nvcuda and use_nvapi:
                     try_copy(g_proton.arch_pe_dir("wine/nvidia-libs/nvcuda", False) + "nvcuda.dll.so", "drive_c/windows/system32/nvcuda.dll",
                             prefix=self.prefix_dir, track_file=tracked_files, link_debug=True)
                     g_session.dlloverrides["nvcuda"] = "n,b"
+                elif use_zluda:
+                    try_copy(g_proton.arch_pe_dir("wine/zluda-libs/zluda", False) + "nvcuda.dll", "drive_c/windows/system32",
+                            prefix=self.prefix_dir, track_file=tracked_files, link_debug=True)
+                    g_session.dlloverrides["nvcuda"] = "n"
                 else:
                     nvcuda64_dll = self.prefix_dir + "drive_c/windows/system32/nvcuda.dll"
                     if file_exists(nvcuda64_dll, follow_symlinks=False):
@@ -1302,6 +1328,10 @@ class CompatData:
                     try_copy(g_proton.arch_pe_dir("wine/nvidia-libs/nvcuda", True) + "nvcuda.dll.so", "drive_c/windows/syswow64/nvcuda.dll",
                              prefix=self.prefix_dir, track_file=tracked_files, link_debug=True)
                     g_session.dlloverrides["nvcuda"] = "n,b"
+                elif use_zluda:
+                    try_copy(g_proton.arch_pe_dir("wine/zluda-libs/zluda", True) + "nvcuda.dll", "drive_c/windows/syswow64",
+                            prefix=self.prefix_dir, track_file=tracked_files, link_debug=True)
+                    g_session.dlloverrides["nvcuda"] = "n"
                 else:
                     nvcuda32_dll = self.prefix_dir + "drive_c/windows/syswow64/nvcuda.dll"
                     if file_exists(nvcuda32_dll, follow_symlinks=False):
@@ -1965,6 +1995,7 @@ class Session:
         self.check_environment("PROTON_NVIDIA_NVENC", "nvenc")
         self.check_environment("PROTON_NVIDIA_NVML", "nvml")
         self.check_environment("PROTON_NVIDIA_NVOPTIX", "nvoptix")
+        self.check_environment("PROTON_ZLUDA", "zluda")
         self.check_environment("PROTON_D7VK_DDRAW", "d7vkddraw")
         self.check_environment("PROTON_DXVK_SAREK", "dxvksarek")
         self.check_environment("PROTON_DXVK_LOWLATENCY", "dxvklowlatency")
