@@ -27,6 +27,9 @@
 [submodule "zluda-libs/hipwine"]
 	path = zluda-libs/hipwine
 	url = https://github.com/opcod3/hipwine.git
+[submodule "zluda-libs/rocm-systems"]
+	path = zluda-libs/rocm-systems
+	url = https://github.com/ROCm/rocm-systems.git
 [submodule "dxvk"]
 	path = dxvk
 	url = https://github.com/doitsujin/dxvk.git
