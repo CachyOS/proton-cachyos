@@ -1090,7 +1090,7 @@ $(eval $(call rules-meson,dxvk,arm64ec,windows))
 
 $(OBJ)/.dxvk-post-source: patches-source
 	$(foreach p,$(shell find $(PATCHES_SRC)/dxvk/ -name "*.patch" | sort),patch -d $(DXVK_SRC) -Np1 -i $(p) &&) true
-	sed -re 's#@VCS_TAG@#$(shell git -C $(SRCDIR)/dxvk describe --always --abbrev=15 --dirty=0 || echo deadbeef)#' \
+	sed -re 's#@VCS_TAG@#$(shell git -C $(SRCDIR)/dxvk describe --always --abbrev=15 --dirty=0 || echo deadbeef)-pcos#' \
 	    $(SRCDIR)/dxvk/version.h.in > $(DXVK_SRC)/version.h.in
 	mkdir -p $(DST_LIBDIR)/wine/dxvk
 	rm -rf $(DST_LIBDIR)/wine/dxvk/version
@@ -1251,7 +1251,7 @@ $(eval $(call rules-meson,vkd3d-proton,arm64ec,windows))
 $(OBJ)/.vkd3d-proton-post-source:
 	sed -re 's#@VCS_TAG@#$(shell git -C $(SRCDIR)/vkd3d-proton describe --always --exclude=* --abbrev=15 --dirty=0 || echo deadbeef)#' \
 	    $(SRCDIR)/vkd3d-proton/vkd3d_build.h.in > $(VKD3D_PROTON_SRC)/vkd3d_build.h.in
-	sed -re 's#@VCS_TAG@#$(shell git -C $(SRCDIR)/vkd3d-proton describe --always --tags --dirty=+ || echo deadbeef)#' \
+	sed -re 's#@VCS_TAG@#$(shell git -C $(SRCDIR)/vkd3d-proton describe --always --tags --dirty=+ || echo deadbeef)-pcos#' \
 	    $(SRCDIR)/vkd3d-proton/vkd3d_version.h.in > $(VKD3D_PROTON_SRC)/vkd3d_version.h.in
 	mkdir -p $(DST_LIBDIR)/wine/vkd3d-proton
 	rm -rf $(DST_LIBDIR)/wine/vkd3d-proton/version
