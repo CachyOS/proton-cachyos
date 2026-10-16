@@ -8,7 +8,7 @@ HIPWINE_x86_64_MESON_ARGS = \
   --cross-file=$(HIPWINE_SRC)/build-wine64.txt \
   --libdir=lib/wine/zluda-libs/hipwine/x86_64-windows
 
-HIPWINE_DEPENDS = wine
+HIPWINE_DEPENDS = wine $(ROCM_SYSTEMS_CLR_DEPENDENCY)
 HIPWINE_HOST_DEPENDS = wine
 
 $(eval $(call rules-source,hipwine,$(SRCDIR)/zluda-libs/hipwine))
