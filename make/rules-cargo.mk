@@ -16,7 +16,7 @@ $$(OBJ)/.$(1)-$(3)-build:
 	@echo ":: building $(1)-$(3)..." >&2
 	cd $$($(2)_SRC) && env $$($(2)_$(3)_ENV) \
 	cargo build $(--quiet?) --release \
-	      $$(filter -j%,$$(MAKEFLAGS)) \
+	      -j$$(SUBJOBS) --locked --offline --verbose \
 	      --target-dir $$($(2)_$(3)_OBJ) \
 	      $$($(3)-$(4)_CARGO_ARGS) \
 	      $$($(2)_CARGO_ARGS) \

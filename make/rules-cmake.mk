@@ -15,6 +15,7 @@ $$(OBJ)/.$(1)-$(3)-configure: $$($(2)_SRC)/CMakeLists.txt
 
 	cd "$$($(2)_$(3)_OBJ)" && env $$($(2)_$(3)_ENV) \
 	cmake "$$($(2)_SRC)" \
+	    -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
 	    -DCMAKE_INSTALL_PREFIX="$$($(2)_$(3)_DST)" \
 	    -DCMAKE_INSTALL_LIBDIR="lib/$$($(3)-$(4)_LIBDIR)" \
 	    -DCMAKE_BUILD_TYPE=plain \
@@ -27,9 +28,9 @@ $$(OBJ)/.$(1)-$(3)-configure: $$($(2)_SRC)/CMakeLists.txt
 $$(OBJ)/.$(1)-$(3)-build:
 	@echo ":: building $(1)-$(3)..." >&2
 	cd "$$($(2)_$(3)_OBJ)" && env $$($(2)_$(3)_ENV) \
-	$$(MAKE)
+	$$(MAKE) -j$$(SUBJOBS)
 	cd "$$($(2)_$(3)_OBJ)" && env $$($(2)_$(3)_ENV) \
-	$$(MAKE) install
+	$$(MAKE) -j$$(SUBJOBS) install
 	touch $$@
 endif
 endef

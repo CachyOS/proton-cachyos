@@ -52,6 +52,7 @@ $$(OBJ)/.$(1)-$(3)-configure: $$($(2)_SRC)/meson.build meson-source
 	      --libdir="lib/$$($(3)-$(4)_LIBDIR)" \
 	      --buildtype=plain \
 	      --cross-file=$$($(2)_$(3)_OBJ)/cross.txt \
+	      --wrap-mode=nodownload \
 	      $$($(3)-$(4)_MESON_ARGS) \
 	      $$($(2)_MESON_ARGS) \
 	      $$($(2)_$(3)_MESON_ARGS) \
@@ -62,7 +63,7 @@ $$(OBJ)/.$(1)-$(3)-configure: $$($(2)_SRC)/meson.build meson-source
 $$(OBJ)/.$(1)-$(3)-build:
 	@echo ":: building $(1)-$(3)..." >&2
 	+env $$($(2)_$(3)_ENV) \
-	ninja -C "$$($(2)_$(3)_OBJ)" install
+	ninja -j$$(SUBJOBS) -C "$$($(2)_$(3)_OBJ)" install
 	touch $$@
 endif
 endef
