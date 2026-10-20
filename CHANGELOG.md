@@ -1,3 +1,33 @@
+### Version 11.0-20261015
+* Proton (SLR and Native)
+   - Bugfix release based on [`cachyos-11.0-20261014-slr`](https://github.com/CachyOS/proton-cachyos/releases/tag/cachyos-11.0-20261014-slr)
+   - Imported https://gitlab.winehq.org/wine/wine/-/merge_requests/11824 from upstream Wine which fixes **FL Studio** and **Genshin Impact** / **Zenless Zone Zero** CN editions.
+   - Reverted the patch that caused maximized windows to use Wine's own decorations. This was not a bug, it was intentional but it was incomplete.
+   - Updated `protonfixes` to [`1.0.15-1912-g8698fcf`](https://github.com/Open-Wine-Components/umu-protonfixes/commit/8698fcf).
+* Proton (SLR only)
+   - None
+* Proton (Native only)
+   - None
+* Wine (Standalone)
+   - None
+
+Brought to you by The Berries, [🍌](https://github.com/BananaWorks07) [🍈](https://github.com/NelloKudo) [🍊](https://github.com/CommandMC) [🍋](https://github.com/loathingKernel), and their seasonal friends.
+
+> [!IMPORTANT]
+> I know that we have a lot of different packages that might cause confusion. My suggestion is to be conservative and use `x86_64`.
+> Feel free to experiment and see which fits better for your system, of course.
+
+> [!NOTE]
+> * For Wayland specific flags and options, please refer to: https://github.com/Etaash-mathamsetty/Proton/blob/em-10/docs/EM-ADDITIONS.md
+> * For FSR4 related documentation, please refer to: https://github.com/Etaash-mathamsetty/Proton/blob/em-10/docs/FSR4.md
+> * For `dxvk-sarek` specific options to tune its behavior refer to: https://github.com/pythonlover02/DXVK-Sarek?tab=readme-ov-file#shader-compilation
+> * For `dxvk-low-latency` related options to tune its behavior refer to: https://github.com/netborg-afps/dxvk-low-latency?tab=readme-ov-file#dxvk-low-latency
+> * For `vkd3d-low-latency` related options to tune its behavior refer to: https://github.com/netborg-afps/vkd3d-low-latency?tab=readme-ov-file#vkd3d-low-latency
+
+**Base:** https://github.com/ValveSoftware/Proton/tree/experimental-11.0-20261014
+
+---
+
 ### Version 11.0-20261014
 * Proton (SLR and Native)
    - Updated to Proton Experimental [`11.0-20261014`](https://github.com/ValveSoftware/Proton/tree/experimental-11.0-20261014) with wine rebased on top of Bleeding Edge [`experimental-wine-bleeding-edge-11.0-453249-20261016-pf413b3-wc53678a-d6689ca-v0bb64c`](https://github.com/ValveSoftware/wine/tree/experimental-wine-bleeding-edge-11.0-453249-20261016-pf413b3-wc53678a-d6689ca-v0bb64c)
