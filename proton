@@ -2589,6 +2589,7 @@ if __name__ == "__main__":
     g_session.check_environment("PROTON_FFX4_UPGRADE", "ffx4")
     g_session.compat_config.add("fsr4")
     g_session.check_environment("PROTON_FSR4_UPGRADE", "fsr4")
+    g_session.check_environment("PROTON_MLFG_UPGRADE", "mlfg")
     g_session.check_environment("PROTON_DLSS_UPGRADE", "dlss")
     g_session.check_environment("PROTON_XESS_UPGRADE", "xess")
     g_session.check_environment("PROTON_USE_OPTISCALER", "optiscaler")
