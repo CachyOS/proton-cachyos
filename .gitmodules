@@ -4,6 +4,10 @@
 [submodule "meson"]
 	path = meson
 	url = https://github.com/mesonbuild/meson.git
+[submodule "nvidia-libs/dxvk-nvapi"]
+	path = nvidia-libs/dxvk-nvapi
+	url = https://github.com/SveSop/dxvk-nvapi.git
+	branch = experimental
 [submodule "nvidia-libs/nvcuda"]
 	path = nvidia-libs/nvcuda
 	url = https://github.com/SveSop/nvcuda.git
