@@ -1078,8 +1078,8 @@ DXVK_x86_64_MESON_ARGS = --bindir=$(DXVK_x86_64_DST)/lib/wine/dxvk/x86_64-window
 DXVK_arm64ec_MESON_ARGS = --bindir=$(DXVK_arm64ec_DST)/lib/wine/dxvk/aarch64-windows
 DXVK_HOST_DEPENDS = glslang
 
-DXVK_i386_CFLAGS = -O3 -mno-avx $(i386_SANITY_FLAGS)
-DXVK_x86_64_CFLAGS = -O3 -mno-avx
+DXVK_i386_CFLAGS = -O3 $(i386_SANITY_FLAGS)
+DXVK_x86_64_CFLAGS = -O3
 DXVK_CPPFLAGS = -msse -msse2
 DXVK_LDFLAGS = -static -static-libgcc -static-libstdc++
 
