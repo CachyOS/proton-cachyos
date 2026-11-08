@@ -1,0 +1,29 @@
+diff --git a/layer/meson.build b/layer/meson.build
+index 9692c5e..1731ed1 100644
+--- a/layer/meson.build
++++ b/layer/meson.build
+@@ -8,7 +8,7 @@ project(
+ 
+ version = vcs_tag(
+     command: ['git', 'describe', '--always', '--tags', '--dirty=+'],
+-    input: '../version.h.in',
++    input: 'version.h.in',
+     output: 'version.h',
+ )
+ 
+@@ -21,12 +21,12 @@ config = configure_file(
+         'BUILD_TARGET': target_machine.cpu_family(),
+         'BUILD_TYPE': get_option('buildtype'),
+     },
+-    input: '../config.h.in',
++    input: 'config.h.in',
+     output: 'config.h',
+ )
+ 
+-vk_headers = include_directories('../external/Vulkan-Headers/include')
+-vkroots = include_directories('../external/vkroots')
++vk_headers = include_directories('external/Vulkan-Headers/include')
++vkroots = include_directories('external/vkroots')
+ 
+ vkreflex_layer = shared_library(
+     'dxvk_nvapi_vkreflex_layer',

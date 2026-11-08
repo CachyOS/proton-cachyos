@@ -1,0 +1,33 @@
+From fb4df6d74f2691de27f4ca0edeec07e15bde0d9f Mon Sep 17 00:00:00 2001
+From: Etaash Mathamsetty
+ <45927311+Etaash-mathamsetty@users.noreply.github.com>
+Date: Fri, 19 Jun 2026 17:52:17 -0400
+Subject: [PATCH 2/3] [dxgi] avoid a warn message
+
+---
+ src/dxgi/dxgi_main.cpp | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/dxgi/dxgi_main.cpp b/src/dxgi/dxgi_main.cpp
+index 158a3c0e7..e64b8d045 100644
+--- a/src/dxgi/dxgi_main.cpp
++++ b/src/dxgi/dxgi_main.cpp
+@@ -23,7 +23,7 @@ namespace dxvk {
+ 
+ extern "C" {
+   DLLEXPORT HRESULT __stdcall CreateDXGIFactory2(UINT Flags, REFIID riid, void **ppFactory) {
+-    dxvk::Logger::warn("CreateDXGIFactory2: Ignoring flags");
++    if (Flags) dxvk::Logger::warn("CreateDXGIFactory2: Ignoring flags");
+     return dxvk::createDxgiFactory(Flags, riid, ppFactory);
+   }
+ 
+@@ -54,4 +54,4 @@ extern "C" {
+     return E_NOINTERFACE;
+   }
+ 
+-}
+\ No newline at end of file
++}
+-- 
+2.55.0
+

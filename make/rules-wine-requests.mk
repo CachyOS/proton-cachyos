@@ -38,6 +38,11 @@ $$(OBJ)/.$(1)-wine-requests: | $$(OBJ)/.$(1)-post-source
 $$(OBJ)/.$(1)-i386-build: $$(OBJ)/.$(1)-wine-requests
 $$(OBJ)/.$(1)-x86_64-build: $$(OBJ)/.$(1)-wine-requests
 $$(OBJ)/.$(1)-aarch64-build: $$(OBJ)/.$(1)-wine-requests
+
+$(1)-requests-distclean::
+	rm -rf $$(OBJ)/.$(1)-wine-requests
+
+distclean: $(1)-requests-distclean
 endef
 
 rules-wine-requests = $(call create-rules-wine-requests,$(1),$(call toupper,$(1)))
