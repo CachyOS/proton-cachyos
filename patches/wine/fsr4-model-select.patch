@@ -1,0 +1,59 @@
+diff --git a/dlls/win32u/d3dkmt.c b/dlls/win32u/d3dkmt.c
+index 53f997b..8a858c1 100644
+--- a/dlls/win32u/d3dkmt.c
++++ b/dlls/win32u/d3dkmt.c
+@@ -808,6 +808,7 @@ NTSTATUS WINAPI NtGdiDdDDIQueryAdapterInfo( D3DKMT_QUERYADAPTERINFO *desc )
+         struct vulkan_physical_device *physical_device;
+         struct vulkan_instance *instance;
+         const char *e;
++        UINT32 fsr4_family = 0, fsr4_revision = 0;
+ 
+         TRACE("size %x\n", desc->PrivateDriverDataSize);
+ 
+@@ -838,6 +839,33 @@ NTSTATUS WINAPI NtGdiDdDDIQueryAdapterInfo( D3DKMT_QUERYADAPTERINFO *desc )
+         if (properties2.properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU)
+             rdna2 = FALSE;
+ 
++        /* FSR4 model selection override (FSR4_MODEL, like FSR4_UPGRADE below).
++         * The FSR4 provider DLL (amdxcffx64.dll) asks for the ASIC family/revision
++         * with the 0x260-byte UMDRIVERPRIVATE query and, when that returns
++         * STATUS_BUFFER_TOO_SMALL (which is what we do below, see the AGS note),
++         * falls back to this 0x4360 ADL query and reads family/revision from
++         * info[0]. The provider IsSupported gates then select the model from that
++         * pair (INT8 = family 0x91, INT8 Lite = 0x96, INT8 RDNA2 = 0x8f, FP8 =
++         * 0x98), so overriding it here is enough to force a model. The 0x260
++         * query is deliberately left untouched. */
++        if (properties2.properties.vendorID == 0x1002)
++        {
++            e = getenv( "FSR4_MODEL" );
++            if (!e || !*e) e = getenv( "PROTON_FSR4_MODEL" ); /* alias */
++            if (e && *e)
++            {
++                if (!strcmp( e, "fp8" ))             { fsr4_family = 0x98; fsr4_revision = 0x51; } /* gfx12 */
++                else if (!strcmp( e, "int8" ))       { fsr4_family = 0x91; fsr4_revision = 0x1;  } /* gfx11 */
++                else if (!strcmp( e, "int8_lite" ))  { fsr4_family = 0x96; fsr4_revision = 0x1;  } /* gfx11.5, FSR 4.1.2+ */
++                else if (!strcmp( e, "int8_rdna2" )) { fsr4_family = 0x8f; fsr4_revision = 0x28; } /* gfx10.3 */
++                else WARN( "Unknown FSR4_MODEL value '%s'.\n", e );
++
++                if (fsr4_family)
++                    TRACE( "UMDRIVERPRIVATE 0x4360: FSR4_MODEL=%s, spoofing ASIC family 0x%x revision 0x%x\n",
++                           e, fsr4_family, fsr4_revision );
++            }
++        }
++
+         /* AGS has a bug where it reads uninitialized memory with the small private data */
+         if (properties2.properties.vendorID == 0x1002 && desc->PrivateDriverDataSize == 0x260)
+             return STATUS_BUFFER_TOO_SMALL;
+@@ -871,6 +899,12 @@ NTSTATUS WINAPI NtGdiDdDDIQueryAdapterInfo( D3DKMT_QUERYADAPTERINFO *desc )
+                 data->info[0].adapterRevision = 0x3;
+             }
+ 
++            if (fsr4_family)
++            {
++                data->info[0].adapterFamily = fsr4_family;
++                data->info[0].adapterRevision = fsr4_revision;
++            }
++
+             return STATUS_SUCCESS;
+         }
+ 
