@@ -2432,6 +2432,16 @@ class Session:
         else:
             self.env.setdefault("DXVK_NVAPI_SET_NGX_DEBUG_OPTIONS", "DLSSIndicator=0,DLSSGIndicator=0,")
 
+        if "PROTON_ENABLE_NGX_UPDATER" in self.env and nonzero(self.env["PROTON_ENABLE_NGX_UPDATER"]):
+            env.setdefault(
+                'DXVK_NVAPI_DRS_SETTINGS',
+                'ngx_dlss_sr_override=on,'
+                'ngx_dlss_rr_override=on,'
+                'ngx_dlss_fg_override=on,'
+                'ngx_dlss_sr_override_render_preset_selection=default,'
+                'ngx_dlss_rr_override_render_preset_selection=default,',
+            )
+
         if "nod3d11" in self.compat_config:
             self.dlloverrides["d3d11"] = ""
             if "dxgi" in self.dlloverrides:
