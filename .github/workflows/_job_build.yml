@@ -22,15 +22,12 @@ on:
         required: false
         type: string
         default: 'ubuntu-24.04'
-      continue:
-        required: true
-        type: boolean
 
 jobs:
   proton:
     name: Build ${{ inputs.name }}
     runs-on: ${{ inputs.runner }}
-    continue-on-error: ${{ inputs.continue }}
+
     steps:
 
     - name: Debloat GitHub runner
