@@ -10,15 +10,12 @@ on:
         required: false
         type: string
         default: 'ubuntu-24.04'
-      continue:
-        required: true
-        type: boolean
 
 jobs:
   test:
     name: Test ${{ inputs.name }}
     runs-on: ${{ inputs.runner }}
-    continue-on-error: ${{ inputs.continue }}
+
     steps:
 
       - name: Update host
