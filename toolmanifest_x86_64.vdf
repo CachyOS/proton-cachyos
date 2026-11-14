@@ -2,7 +2,6 @@
 {
   "version" "2"
   "commandline" "/proton %verb%"
-  "unlisted" "1"
   "use_sessions" "1"
   "compatmanager_layer_name" "proton"
 }
