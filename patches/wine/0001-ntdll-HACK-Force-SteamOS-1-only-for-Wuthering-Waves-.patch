@@ -1,0 +1,59 @@
+From 4cd0f3c2a5de96bed09bfc66761e1c0eba6e6bf7 Mon Sep 17 00:00:00 2001
+From: NelloKudo <marshnelloosu@gmail.com>
+Date: Fri, 13 Nov 2026 02:12:15 +0100
+Subject: [PATCH] ntdll: HACK: Force SteamOS=1 only for Wuthering Waves'
+ launcher.
+
+SteamOS=1 improves how the Wuthering Waves launcher behaves on Linux,
+however passing it to the game, as of update 3.8, blocks FSR3 from working.
+This allows the game to behave normally, while the launcher still gets the
+needed workarounds for Wine. People can also opt-out by setting SteamOS manually
+themselves.
+
+Ideally this should be dropped once the game stops breaking FSR3 for SteamOS.
+---
+ dlls/ntdll/unix/env.c | 21 +++++++++++++++++++++
+ 1 file changed, 21 insertions(+)
+
+diff --git a/dlls/ntdll/unix/env.c b/dlls/ntdll/unix/env.c
+index 104b1eb90f8..d3a8ef2fba0 100644
+--- a/dlls/ntdll/unix/env.c
++++ b/dlls/ntdll/unix/env.c
+@@ -1034,6 +1034,25 @@ static void add_system_dll_path_var( WCHAR **env, SIZE_T *pos, SIZE_T *size )
+ }
+ 
+ 
++static void wuwa_fixup_steamos_env( WCHAR **env, SIZE_T *pos, SIZE_T *size )
++{
++    static const WCHAR steamosW[] = u"SteamOS";
++    static int is_wuwa = -1;
++
++    if (is_wuwa == -1)
++    {
++        const char *sgi = getenv( "SteamGameId" );
++        is_wuwa = sgi && !strcmp( sgi, "3513350" ) && !getenv( "SteamOS" );
++    }
++    if (!is_wuwa) return;
++
++    if (main_argc > 1 && (strstr( main_argv[1], "\\launcher.exe" ) || strstr( main_argv[1], "\\launcher_main.exe" )))
++        set_env_var( env, pos, size, steamosW, ARRAY_SIZE(steamosW) - 1, u"1" );
++    else
++        set_env_var( env, pos, size, steamosW, ARRAY_SIZE(steamosW) - 1, NULL );
++}
++
++
+ /*************************************************************************
+  *		add_dynamic_environment
+  *
+@@ -1074,6 +1093,8 @@ static void add_dynamic_environment( WCHAR **env, SIZE_T *pos, SIZE_T *size )
+ 
+     if ((var = getenv( "VR_CONFIG_PATH" ))) add_path_var( env, pos, size, "VR_CONFIG_PATH", var );
+     if ((var = getenv( "VR_LOG_PATH" ))) add_path_var( env, pos, size, "VR_LOG_PATH", var );
++
++    wuwa_fixup_steamos_env( env, pos, size );
+ }
+ 
+ 
+-- 
+2.56.1
+
