@@ -1,0 +1,34 @@
+From c2d391d2df8900c7d7155b2254409c1f97358044 Mon Sep 17 00:00:00 2001
+From: NelloKudo <marshnelloosu@gmail.com>
+Date: Fri, 13 Nov 2026 02:41:03 +0100
+Subject: [PATCH] protonfixes: Fix white in-game pages in Wuthering Waves
+
+---
+ gamefixes-steam/3513350.py | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/gamefixes-steam/3513350.py b/gamefixes-steam/3513350.py
+index 0a7b5de..03b4a1d 100644
+--- a/gamefixes-steam/3513350.py
++++ b/gamefixes-steam/3513350.py
+@@ -3,7 +3,7 @@ https://www.protondb.com/app/3513350
+ """
+ 
+ from protonfixes import util
+-
++from pathlib import Path
+ 
+ def main() -> None:
+     """Font fixes for in-game resources, if any."""
+@@ -15,3 +15,8 @@ def main() -> None:
+     """Unsetting them to also prevent issues on Steam Decks where they are set by default."""
+     util.del_environment('SteamOS')
+     util.del_environment('SteamDeck')
++
++    """As of version 3.8, in-game web pages stay white with KRWebClient.exe due to missing dcomp."""
++    """Force its bitmap fallback."""
++    for exe in Path(util.get_game_install_path()).glob('**/KRSDKWebViewOSR/KRWebClient.exe'):
++        exe.with_name('usebitmap.flag').touch()
+-- 
+2.56.1
+
