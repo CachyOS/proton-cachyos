@@ -121,6 +121,7 @@ jobs:
   test:
     name: Test
     needs: [version, build]
+    if: ${{ !cancelled() }}
     strategy:
       fail-fast: false
       matrix:
