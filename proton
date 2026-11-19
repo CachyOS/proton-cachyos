@@ -2414,7 +2414,7 @@ class Session:
             self.env.setdefault("DXVK_NVAPI_SET_NGX_DEBUG_OPTIONS", "DLSSIndicator=0,DLSSGIndicator=0,")
 
         if "PROTON_ENABLE_NGX_UPDATER" in self.env and nonzero(self.env["PROTON_ENABLE_NGX_UPDATER"]):
-            env.setdefault(
+            self.env.setdefault(
                 'DXVK_NVAPI_DRS_SETTINGS',
                 'ngx_dlss_sr_override=on,'
                 'ngx_dlss_rr_override=on,'
