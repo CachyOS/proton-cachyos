@@ -1319,7 +1319,6 @@ endif # WITHOUT_EXTRAS
 ## steam-audio
 ##
 
-WITHOUT_STEAM_AUDIO ?= 1
 ifneq ($(WITHOUT_STEAM_AUDIO),1)
 include $(SRC)/steam-audio/build-steam-audio.mk
 endif # WITHOUT_STEAM_AUDIO
