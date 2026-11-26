@@ -149,7 +149,7 @@ jobs:
       shell: bash
       run: |
         git fetch origin +refs/tags/*:refs/tags/*
-        python -c "v='${{ needs.version.outputs.full_desc }}'.split('-');print('title='+'-'.join([v[0],v[1],'nightly']))" >> "$GITHUB_OUTPUT"
+        python -c "v='${{ needs.version.outputs.full_desc }}'.split('-');print('title='+'-'.join([v[0],v[1],v[2],'nightly']))" >> "$GITHUB_OUTPUT"
     - name: Delete
       id: delete
       shell: bash
@@ -187,8 +187,8 @@ jobs:
         include:
           - name: proton-${{ needs.version.outputs.full_desc }}-x86_64
           - name: proton-${{ needs.version.outputs.full_desc }}-x86_64_v3
+          - name: proton-${{ needs.version.outputs.full_desc }}-x86_64-llvm
           - name: proton-${{ needs.version.outputs.full_desc }}-x86_64_v3-llvm
-          - name: proton-${{ needs.version.outputs.full_desc }}-x86_64_v4-llvm
           - name: proton-${{ needs.version.outputs.full_desc }}-arm64
     uses: ./.github/workflows/_job_upload.yml
     with:
