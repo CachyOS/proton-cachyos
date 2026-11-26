@@ -139,6 +139,7 @@ jobs:
     runs-on: ubuntu-slim
     outputs:
       title: ${{ steps.title.outputs.title }}
+      tag: ${{ steps.title.outputs.tag }}
     steps:
     - uses: actions/checkout@v6
       with:
@@ -193,5 +194,5 @@ jobs:
           - name: proton-${{ needs.version.outputs.full_desc }}-arm64
     uses: ./.github/workflows/_job_upload.yml
     with:
-      version: ${{ needs.nightly.outputs.title }}
+      version: ${{ needs.nightly.outputs.tag }}
       name: ${{ matrix.name }}
