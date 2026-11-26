@@ -149,14 +149,15 @@ jobs:
       shell: bash
       run: |
         git fetch origin +refs/tags/*:refs/tags/*
-        python -c "v='${{ needs.version.outputs.full_desc }}'.split('-');print('title='+'-'.join([v[0],v[1],v[2],'nightly']))" >> "$GITHUB_OUTPUT"
+        python -c "v='${{ needs.version.outputs.full_desc }}'.split('-');print('title='+'-'.join([v[1],v[2],'nightly']))" >> "$GITHUB_OUTPUT"
+        python -c "v='${{ needs.version.outputs.full_desc }}'.split('-');print('tag='+'-'.join([v[0],v[1],v[2],'nightly']))" >> "$GITHUB_OUTPUT"
     - name: Delete
       id: delete
       shell: bash
       run: >-
         gh
         release delete
-        ${{ steps.title.outputs.title }}
+        ${{ steps.title.outputs.tag }}
         --cleanup-tag
         --yes
         || true
@@ -168,10 +169,10 @@ jobs:
       run: >-
         gh
         release create
-        ${{ steps.title.outputs.title }}
+        ${{ steps.title.outputs.tag }}
         --prerelease
         --latest=false
-        --title "Development ${{ steps.title.outputs.title }}"
+        --title "Snapshot ${{ steps.title.outputs.title }}"
         --notes "Version: ${{ needs.version.outputs.full_desc }}"
         --generate-notes
         --notes-start-tag ${{ needs.version.outputs.tag_abbrev }}
