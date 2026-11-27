@@ -2447,11 +2447,13 @@ class Session:
         if "PROTON_ENABLE_NGX_UPDATER" in self.env and nonzero(self.env["PROTON_ENABLE_NGX_UPDATER"]):
             self.env.setdefault(
                 'DXVK_NVAPI_DRS_SETTINGS',
+                'sl_dlss_override=on,'
                 'ngx_dlss_sr_override=on,'
                 'ngx_dlss_rr_override=on,'
                 'ngx_dlss_fg_override=on,'
-                'ngx_dlss_sr_override_render_preset_selection=default,'
-                'ngx_dlss_rr_override_render_preset_selection=default,',
+                'ngx_dlss_sr_override_render_preset_selection=latest,'
+                'ngx_dlss_rr_override_render_preset_selection=latest,'
+                'ngx_dlss_fg_override_render_preset_selection=latest,',
             )
 
         if "nod3d11" in self.compat_config:
