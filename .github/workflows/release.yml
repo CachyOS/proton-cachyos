@@ -53,7 +53,7 @@ jobs:
       cflags: ${{ matrix.cflags }}
       rustflags: ${{ matrix.rustflags }}
       configure: ${{ matrix.configure }}
-      runner: ${{ matrix.runner != '' && matrix.runner || 'ubuntu-24.04' }}
+      runner: ${{ matrix.runner != '' && matrix.runner || vars.PROTON_X86_RUNNER || 'ubuntu-24.04' }}
 
   release:
     name: Release

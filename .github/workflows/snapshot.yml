@@ -108,7 +108,7 @@ jobs:
       cflags: ${{ matrix.cflags }}
       rustflags: ${{ matrix.rustflags }}
       configure: --enable-ccache ${{ matrix.configure }}
-      runner: ${{ matrix.runner != '' && matrix.runner || 'ubuntu-24.04' }}
+      runner: ${{ matrix.runner != '' && matrix.runner || vars.PROTON_X86_RUNNER || 'ubuntu-24.04' }}
 
   test:
     name: Test
@@ -131,7 +131,7 @@ jobs:
     uses: ./.github/workflows/_job_test.yml
     with:
       name: ${{ matrix.name }}
-      runner: ${{ matrix.runner != '' && matrix.runner || 'ubuntu-24.04' }}
+      runner: ${{ matrix.runner != '' && matrix.runner || vars.PROTON_X86_RUNNER || 'ubuntu-24.04' }}
 
   nightly:
     name: Nightly

@@ -18,7 +18,12 @@ jobs:
 
     steps:
 
+      - name: Clean workspace (self-hosted)
+        if: runner.environment == 'self-hosted'
+        run: find "$GITHUB_WORKSPACE" -mindepth 1 -delete
+
       - name: Update host
+        if: runner.environment == 'github-hosted'
         run: |
           sudo apt-get update
           echo "deb http://archive.ubuntu.com/ubuntu/ noble noble-updates noble-backports main universe restricted multiverse" | sudo tee -a /etc/apt/sources.list
@@ -44,6 +49,6 @@ jobs:
         run: >-
           source
           umu-launcher/venv/bin/activate &&
-          env WINEPREFIX=~/testpfx
+          env WINEPREFIX="$RUNNER_TEMP/testpfx"
           PROTONPATH="$PWD/${{ inputs.name }}"
           umu-run cmd.exe /c echo "This is a test"

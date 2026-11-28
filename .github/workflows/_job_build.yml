@@ -31,6 +31,7 @@ jobs:
     steps:
 
     - name: Debloat GitHub runner
+      if: runner.environment == 'github-hosted'
       uses: endersonmenezes/free-disk-space@v3
       with:
         remove_android: true
@@ -64,6 +65,7 @@ jobs:
         testing: false
 
     - name: Prepare host
+      if: runner.environment == 'github-hosted'
       run: sudo apt update && sudo apt-get install -y ccache fontforge-nox
 
     - name: Checkout
@@ -97,6 +99,7 @@ jobs:
         echo "checksum=$checksum" >> $GITHUB_OUTPUT
 
     - name: Restore cache
+      if: runner.environment == 'github-hosted'
       id: ccache-restore
       uses: actions/cache/restore@v5
       with:
@@ -112,7 +115,7 @@ jobs:
 
     - name: Save cache
       id: ccache-save
-      if: always()
+      if: always() && runner.environment == 'github-hosted'
       uses: actions/cache/save@v5
       with:
         path: ~/.ccache
